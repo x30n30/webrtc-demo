@@ -147,6 +147,7 @@
       <button id="file-play-btn" disabled>Play</button>
       <button id="file-pause-btn" disabled>Pause</button>
       <button id="file-stop-btn" disabled>Stop</button>
+      <button id="file-loop-btn" disabled>Loop: off</button>
       <button id="file-track-btn" disabled>Head track: off</button>
       <span id="file-status">no file</span>
     </div>
@@ -347,6 +348,7 @@
     const filePlayBtn   = document.getElementById('file-play-btn');
     const filePauseBtn  = document.getElementById('file-pause-btn');
     const fileStopBtn   = document.getElementById('file-stop-btn');
+    const fileLoopBtn   = document.getElementById('file-loop-btn');
     const fileTrackBtn  = document.getElementById('file-track-btn');
     const fileStatusEl  = document.getElementById('file-status');
 
@@ -380,7 +382,14 @@
       filePlayBtn.disabled  = false;
       filePauseBtn.disabled = true;
       fileStopBtn.disabled  = true;
+      fileLoopBtn.disabled  = false;
       fileTrackBtn.disabled = false;
+    });
+
+    fileLoopBtn.addEventListener('click', () => {
+      fileVideo.loop = !fileVideo.loop;
+      fileLoopBtn.textContent = fileVideo.loop ? 'Loop: on' : 'Loop: off';
+      fileLoopBtn.classList.toggle('toggled', fileVideo.loop);
     });
 
     filePlayBtn.addEventListener('click', async () => {
