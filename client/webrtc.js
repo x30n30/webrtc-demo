@@ -6,9 +6,10 @@ const DEFAULT_ICE_SERVERS = [
 ];
 
 class WebRTCClient {
-  constructor({ signalingUrl, room, localVideoEl, remoteVideoEl, spatialAudio = null, iceServers = DEFAULT_ICE_SERVERS }) {
+  constructor({ signalingUrl, room, localVideoEl, remoteVideoEl, spatialAudio = null, iceServers = DEFAULT_ICE_SERVERS, name = '' }) {
     this._signalingUrl = signalingUrl;
     this._room = room;
+    this._name = name;
     this._localVideoEl = localVideoEl;
     this._remoteVideoEl = remoteVideoEl;
     this._spatialAudio = spatialAudio;
@@ -24,6 +25,7 @@ class WebRTCClient {
     this.onIceStateChange = null;
     this.onError         = null;
     this.onDataMessage   = null;
+    this.onPeerName      = null;
   }
 
   async start() {
@@ -66,7 +68,9 @@ class WebRTCClient {
       this._ws = ws;
 
       ws.addEventListener('open', () => {
-        this._send({ type: 'join', room: this._room });
+        const msg = { type: 'join', room: this._room };
+        if (this._name) msg.name = this._name;
+        this._send(msg);
         resolve();
       });
 
@@ -173,6 +177,7 @@ class WebRTCClient {
     try {
       switch (msg.type) {
         case 'peer-joined':
+          if (this.onPeerName) this.onPeerName(msg.name || '');
           await this._startOffer();
           break;
 
@@ -194,6 +199,7 @@ class WebRTCClient {
           break;
 
         case 'peer-left':
+          if (this.onPeerName) this.onPeerName('');
           this._status('disconnected');
           break;
 

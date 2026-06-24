@@ -179,3 +179,94 @@ async def test_client_disconnect_triggers_peer_left(server):
     assert msg["type"] == "peer-left"
 
     await ws1.close()
+
+
+# Test 9
+async def test_peer_joined_includes_joining_peers_name(server):
+    srv, port = server
+    ws1 = await connect(port)
+    ws2 = await connect(port)
+
+    await send_msg(ws1, {"type": "join", "room": "room-g", "name": "Alice"})
+    pending = asyncio.create_task(next_message(ws1))
+    await send_msg(ws2, {"type": "join", "room": "room-g", "name": "Bob"})
+
+    msg = await pending
+    assert msg["type"] == "peer-joined"
+    assert msg["name"] == "Bob"
+
+    await ws1.close()
+    await ws2.close()
+
+
+# Test 10
+async def test_peek_empty_room_returns_zero_count(server):
+    srv, port = server
+    ws = await connect(port)
+
+    pending = asyncio.create_task(next_message(ws))
+    await send_msg(ws, {"type": "peek", "room": "empty-room"})
+
+    msg = await pending
+    assert msg["type"] == "room-status"
+    assert msg["count"] == 0
+    assert msg["names"] == []
+
+    await ws.close()
+
+
+# Test 11
+async def test_peek_room_with_one_peer_returns_name(server):
+    srv, port = server
+    ws1 = await connect(port)
+    ws2 = await connect(port)
+
+    await send_msg(ws1, {"type": "join", "room": "room-h", "name": "Alice"})
+
+    pending = asyncio.create_task(next_message(ws2))
+    await send_msg(ws2, {"type": "peek", "room": "room-h"})
+
+    msg = await pending
+    assert msg["type"] == "room-status"
+    assert msg["count"] == 1
+    assert "Alice" in msg["names"]
+
+    await ws1.close()
+    await ws2.close()
+
+
+# Test 12
+async def test_join_without_name_defaults_to_anonymous(server):
+    srv, port = server
+    ws1 = await connect(port)
+    ws2 = await connect(port)
+
+    await send_msg(ws1, {"type": "join", "room": "room-i"})
+    pending = asyncio.create_task(next_message(ws1))
+    await send_msg(ws2, {"type": "join", "room": "room-i"})
+
+    msg = await pending
+    assert msg["type"] == "peer-joined"
+    assert msg["name"] == "Anonymous"
+
+    await ws1.close()
+    await ws2.close()
+
+
+# Test 13
+async def test_clear_room_sends_room_cleared_to_peers(server):
+    srv, port = server
+    ws1 = await connect(port)
+    ws2 = await connect(port)
+    ws3 = await connect(port)
+
+    await send_msg(ws1, {"type": "join", "room": "room-j", "name": "Alice"})
+    await send_msg(ws2, {"type": "join", "room": "room-j", "name": "Bob"})
+    await next_message(ws1)  # consume peer-joined
+
+    pending = asyncio.create_task(next_message(ws1))
+    await send_msg(ws3, {"type": "clear-room", "room": "room-j"})
+    msg = await pending
+    assert msg["type"] == "room-cleared"
+
+    await ws3.close()

@@ -114,9 +114,85 @@
     .file-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
     #file-status { font-size: 0.8rem; opacity: 0.5; margin-left: 0.5rem; }
     button.toggled { background: #a62; }
+
+    /* ── Lobby ────────────────────────────────────────────────── */
+    #lobby {
+      position: fixed; inset: 0;
+      background: #111;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .lobby-card {
+      background: #1a1a1a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 2rem 2.5rem;
+      width: 380px;
+      max-width: 95vw;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .lobby-card h1 { font-size: 1rem; letter-spacing: 0.12em; text-align: center; }
+    .lobby-field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+    .lobby-field label { font-size: 0.75rem; opacity: 0.5; }
+    .lobby-field input {
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #eee;
+      font-family: monospace;
+      font-size: 0.9rem;
+      padding: 0.4rem 0.6rem;
+    }
+    .lobby-field input:focus { outline: 1px solid #4af; border-color: #4af; }
+    #lobby-room-status {
+      font-size: 0.8rem;
+      text-align: center;
+      min-height: 1.4em;
+      opacity: 0.6;
+    }
+    #lobby-room-status.full { color: #f84; opacity: 1; }
+    #lobby-room-status.open { color: #4af; opacity: 1; }
+    #lobby-room-status.waiting { color: #fa4; opacity: 1; }
+    .lobby-buttons { display: flex; gap: 0.6rem; }
+    .lobby-buttons button { flex: 1; }
+    button.secondary { background: #444; }
+    button.secondary:hover { background: #555; }
+    #lobby-msg { font-size: 0.78rem; color: #f84; text-align: center; min-height: 1.2em; }
   </style>
 </head>
 <body>
+
+  <!-- ── Lobby ──────────────────────────────────────────────────────────── -->
+  <div id="lobby">
+    <div class="lobby-card">
+      <h1>SPATIAL AUDIO CONFERENCE</h1>
+      <div class="lobby-field">
+        <label>Your name</label>
+        <input id="lobby-name" type="text" placeholder="Enter your name" autocomplete="off" />
+      </div>
+      <div class="lobby-field">
+        <label>Room</label>
+        <input id="lobby-room" type="text" value="default" autocomplete="off" />
+      </div>
+      <div id="lobby-room-status">checking…</div>
+      <div class="lobby-buttons">
+        <button id="lobby-join-btn">Join Room</button>
+        <button id="lobby-clear-btn" class="secondary">Clear Room</button>
+      </div>
+      <div id="lobby-msg"></div>
+    </div>
+  </div>
+
+  <!-- ── App ────────────────────────────────────────────────────────────── -->
+  <div id="app" style="display:none;width:100%;flex-direction:column;align-items:center;gap:1.5rem">
   <h1>WebRTC — Spatial Audio</h1>
 
   <div class="videos">
@@ -126,7 +202,7 @@
     </div>
     <div class="tile">
       <video id="remote-video" class="remote-border" autoplay playsinline muted></video>
-      <span style="color:#f84">Remote</span>
+      <span style="color:#f84" id="remote-name">Remote</span>
     </div>
   </div>
 
@@ -190,6 +266,8 @@
   </div>
 
   <!-- MediaPipe FaceMesh (pinned version) -->
+  </div><!-- /#app -->
+
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
   <script src="spatial-audio.js"></script>
   <script src="landmark-to-yaw.js"></script>
@@ -276,6 +354,8 @@
     vizRemote.update(0, 1);
 
     let client = null;
+    let currentName = '';
+    let currentRoom = location.hash.slice(1) || 'default';
 
     connectBtn.addEventListener('click', async () => {
       connectBtn.disabled = true;
@@ -283,7 +363,8 @@
 
       client = new WebRTCClient({
         signalingUrl,
-        room,
+        room: currentRoom,
+        name: currentName,
         localVideoEl: localVideo,
         remoteVideoEl: remoteVideo,
         spatialAudio,
@@ -304,6 +385,10 @@
         roomViz.setRemoteAzimuth(azimuth);
       };
 
+      client.onPeerName = (n) => {
+        remoteNameEl.textContent = n || 'Remote';
+      };
+
       client.onStatusChange = (s) => {
         statusEl.textContent = s;
         if (s === 'connected') {
@@ -315,6 +400,8 @@
           faceStatusEl.textContent = 'no face';
           remoteFaceStatusEl.textContent = 'no face';
           iceStatusEl.textContent = '';
+          remoteNameEl.textContent = 'Remote';
+          showLobby();
         }
       };
 
@@ -341,6 +428,8 @@
       cameraTracker.stop();
       spatialAudio.detach();
       fileAttached = false;
+      remoteNameEl.textContent = 'Remote';
+      showLobby();
     });
 
     // ── File Player ────────────────────────────────────────────────────────
@@ -455,6 +544,90 @@
 
     // Reset fileAttached when WebRTC takes over the audio graph
     connectBtn.addEventListener('click', () => { fileAttached = false; }, { capture: true });
+
+    // ── Lobby ──────────────────────────────────────────────────────────────
+    const lobbyEl       = document.getElementById('lobby');
+    const appEl         = document.getElementById('app');
+    const lobbyNameEl   = document.getElementById('lobby-name');
+    const lobbyRoomEl   = document.getElementById('lobby-room');
+    const lobbyStatusEl = document.getElementById('lobby-room-status');
+    const lobbyJoinBtn  = document.getElementById('lobby-join-btn');
+    const lobbyClearBtn = document.getElementById('lobby-clear-btn');
+    const lobbyMsgEl    = document.getElementById('lobby-msg');
+    const remoteNameEl  = document.getElementById('remote-name');
+
+    let peekTimer = null;
+
+    function getLobbyRoom() { return lobbyRoomEl.value.trim() || 'default'; }
+
+    async function peekRoom() {
+      const r = getLobbyRoom();
+      return new Promise((resolve) => {
+        const ws = new WebSocket(signalingUrl);
+        const done = (result) => { try { ws.close(); } catch {} resolve(result); };
+        ws.onopen    = () => ws.send(JSON.stringify({ type: 'peek', room: r }));
+        ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'room-status') done(m); };
+        ws.onerror   = () => done({ count: 0, names: [] });
+        setTimeout(() => done({ count: 0, names: [] }), 3000);
+      });
+    }
+
+    async function updateLobbyStatus() {
+      const { count, names } = await peekRoom();
+      if (count === 0) {
+        lobbyStatusEl.className = 'open';
+        lobbyStatusEl.textContent = "Room is empty — you'll be first";
+      } else if (count === 1) {
+        lobbyStatusEl.className = 'waiting';
+        lobbyStatusEl.textContent = `1/2 — ${names[0]} is waiting`;
+      } else {
+        lobbyStatusEl.className = 'full';
+        lobbyStatusEl.textContent = 'Room is full (2/2)';
+      }
+      lobbyJoinBtn.disabled = count >= 2;
+    }
+
+    function showLobby() {
+      appEl.style.display   = 'none';
+      lobbyEl.style.display = 'flex';
+      lobbyMsgEl.textContent = '';
+      updateLobbyStatus();
+      peekTimer = setInterval(updateLobbyStatus, 3000);
+    }
+
+    function showApp() {
+      clearInterval(peekTimer);
+      lobbyEl.style.display = 'none';
+      appEl.style.display   = 'flex';
+    }
+
+    lobbyRoomEl.addEventListener('input', () => {
+      lobbyStatusEl.className = '';
+      lobbyStatusEl.textContent = 'checking…';
+      updateLobbyStatus();
+    });
+
+    lobbyJoinBtn.addEventListener('click', () => {
+      const name = lobbyNameEl.value.trim();
+      if (!name) { lobbyMsgEl.textContent = 'Please enter your name.'; return; }
+      currentName = name;
+      currentRoom = getLobbyRoom();
+      showApp();
+      connectBtn.click();
+    });
+
+    lobbyClearBtn.addEventListener('click', () => {
+      const r = getLobbyRoom();
+      const ws = new WebSocket(signalingUrl);
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'clear-room', room: r }));
+        setTimeout(() => { try { ws.close(); } catch {} updateLobbyStatus(); }, 300);
+      };
+      lobbyMsgEl.textContent = `Room "${r}" cleared.`;
+    });
+
+    // Show lobby on load
+    showLobby();
   </script>
 </body>
 </html>

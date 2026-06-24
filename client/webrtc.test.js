@@ -458,6 +458,47 @@ test('RTCPeerConnection is created with the provided iceServers', async () => {
   client.disconnect();
 });
 
+// Test 16
+test('start() includes name in join message when provided', async () => {
+  const client = makeClient({ name: 'Alice' });
+  client.start();
+  const ws = wsInstances[0];
+  ws._open();
+  await flushPromises();
+
+  expect(ws._sent).toContainEqual({ type: 'join', room: 'test-room', name: 'Alice' });
+  client.disconnect();
+});
+
+// Test 17
+test('start() omits name from join message when not provided', async () => {
+  const client = makeClient();
+  client.start();
+  const ws = wsInstances[0];
+  ws._open();
+  await flushPromises();
+
+  expect(ws._sent).toContainEqual({ type: 'join', room: 'test-room' });
+  client.disconnect();
+});
+
+// Test 18
+test('onPeerName fires with peer name when peer-joined received', async () => {
+  const client = makeClient();
+  const names = [];
+  client.onPeerName = (n) => names.push(n);
+  client.start();
+  const ws = wsInstances[0];
+  ws._open();
+  await flushPromises();
+
+  ws._receive({ type: 'peer-joined', name: 'Bob' });
+  await flushPromises();
+
+  expect(names).toContain('Bob');
+  client.disconnect();
+});
+
 // Test 15
 test('default ICE config includes at least one STUN server', async () => {
   const client = makeClient(); // no iceServers specified

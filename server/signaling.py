@@ -1,7 +1,7 @@
 """
 WebSocket signaling server — asyncio port of signaling.js.
 
-rooms: dict[roomId, list[websocket]]  — max 2 peers per room
+rooms: dict[roomId, list[{"ws": ws, "name": str}]]  — max 2 peers per room
 """
 
 import asyncio
@@ -31,17 +31,36 @@ async def start_server(port: int):
 
                 msg_type = msg.get("type")
 
+                if msg_type == "peek":
+                    r = msg.get("room", "default")
+                    entries = rooms.get(r, [])
+                    await _send(ws, {
+                        "type": "room-status",
+                        "count": len(entries),
+                        "names": [e["name"] for e in entries],
+                    })
+                    continue
+
+                if msg_type == "clear-room":
+                    r = msg.get("room", "default")
+                    entries = rooms.pop(r, [])
+                    for entry in entries:
+                        await _send(entry["ws"], {"type": "room-cleared"})
+                        await entry["ws"].close()
+                    continue
+
                 if msg_type == "join":
                     room_id = msg["room"]
+                    name = msg.get("name", "Anonymous")
                     if room_id not in rooms:
-                        rooms[room_id] = [ws]
+                        rooms[room_id] = [{"ws": ws, "name": name}]
                     else:
                         peers = rooms[room_id]
                         if len(peers) >= 2:
                             await _send(ws, {"type": "room-full"})
                             continue
-                        peers.append(ws)
-                        await _send(peers[0], {"type": "peer-joined"})
+                        peers.append({"ws": ws, "name": name})
+                        await _send(peers[0]["ws"], {"type": "peer-joined", "name": name})
                     continue
 
                 peer = _get_other_peer(ws, room_id, rooms)
@@ -59,12 +78,14 @@ async def start_server(port: int):
             if room_id is not None:
                 peers = rooms.get(room_id)
                 if peers:
-                    remaining = [p for p in peers if p is not ws]
+                    my_entry = next((e for e in peers if e["ws"] is ws), None)
+                    remaining = [e for e in peers if e["ws"] is not ws]
                     if not remaining:
                         del rooms[room_id]
                     else:
                         rooms[room_id] = remaining
-                        await _send(remaining[0], {"type": "peer-left"})
+                        left_name = my_entry["name"] if my_entry else "Anonymous"
+                        await _send(remaining[0]["ws"], {"type": "peer-left", "name": left_name})
 
     server = await websockets.serve(handler, "localhost", port)
     return server
@@ -76,9 +97,9 @@ def _get_other_peer(ws, room_id, rooms):
     peers = rooms.get(room_id)
     if not peers:
         return None
-    for p in peers:
-        if p is not ws:
-            return p
+    for entry in peers:
+        if entry["ws"] is not ws:
+            return entry["ws"]
     return None
 
 
