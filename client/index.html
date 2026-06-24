@@ -208,7 +208,9 @@
     const distanceEl    = document.getElementById('distance');
     const distanceVal   = document.getElementById('distance-val');
 
-    const signalingUrl = `ws://${location.hostname || 'localhost'}:${location.port || 8080}`;
+    const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsPort  = location.port || (location.protocol === 'https:' ? '443' : '80');
+    const signalingUrl = `${wsProto}://${location.hostname || 'localhost'}:${wsPort}`;
     const room = location.hash.slice(1) || 'default';
 
     const spatialAudio   = new SpatialAudio();
