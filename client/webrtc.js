@@ -30,8 +30,8 @@ class WebRTCClient {
 
   async start() {
     this._status('connecting');
-    await this._connectSignaling();
     await this._getLocalMedia();
+    await this._connectSignaling();
   }
 
   sendData(data) {
