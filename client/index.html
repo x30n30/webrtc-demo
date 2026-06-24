@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebRTC — Spatial Audio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #111;
+      color: #eee;
+      font-family: monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      gap: 1.5rem;
+    }
+    h1 { font-size: 1.2rem; letter-spacing: 0.1em; }
+    .videos {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .tile {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .tile span { font-size: 0.75rem; opacity: 0.6; }
+    video {
+      width: 480px;
+      max-width: 100%;
+      aspect-ratio: 16/9;
+      background: #222;
+      border: 1px solid #333;
+      border-radius: 4px;
+    }
+    .controls { display: flex; gap: 1rem; align-items: center; }
+    button {
+      padding: 0.5rem 1.5rem;
+      background: #2a6;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    button:disabled { background: #444; cursor: default; }
+    #status { font-size: 0.85rem; opacity: 0.7; }
+    .bottom {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .distance-ctrl {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      width: 160px;
+    }
+    .distance-ctrl label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      opacity: 0.8;
+    }
+    .distance-ctrl input[type=range] { width: 100%; }
+    canvas {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 50%;
+    }
+    canvas.room {
+      border-radius: 4px;
+    }
+    video.local-border  { border: 2px solid #4af; }
+    video.remote-border { border: 2px solid #f84; }
+    .hint {
+      font-size: 0.75rem;
+      opacity: 0.4;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>WebRTC — Spatial Audio</h1>
+
+  <div class="videos">
+    <div class="tile">
+      <video id="local-video" class="local-border" autoplay playsinline muted></video>
+      <span style="color:#4af">You</span>
+    </div>
+    <div class="tile">
+      <video id="remote-video" class="remote-border" autoplay playsinline muted></video>
+      <span style="color:#f84">Remote</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="connect-btn">Connect</button>
+    <button id="disconnect-btn" disabled>Disconnect</button>
+    <span id="status">idle</span>
+    <span id="ice-status" style="font-size:0.75rem;opacity:0.5"></span>
+  </div>
+
+  <div class="bottom">
+    <div class="distance-ctrl">
+      <label>
+        <span>Distance</span>
+        <span id="distance-val">1.0 m</span>
+      </label>
+      <input type="range" id="distance" min="1" max="10" value="1" step="0.1" />
+    </div>
+    <div class="tile">
+      <canvas id="viz-mouse" width="200" height="200"></canvas>
+      <span class="hint">mouse — active (M3)</span>
+    </div>
+    <div class="tile">
+      <canvas id="viz-camera" width="200" height="200"></canvas>
+      <span class="hint">you — <span id="face-status">no face</span></span>
+    </div>
+    <div class="tile">
+      <canvas id="viz-remote" width="200" height="200"></canvas>
+      <span class="hint">remote — <span id="remote-face-status">no face</span></span>
+    </div>
+    <div class="tile">
+      <canvas id="room-viz" class="room" width="300" height="300"></canvas>
+      <div class="distance-ctrl" style="width:300px;margin-top:0.4rem">
+        <label>
+          <span>Room size</span>
+          <span id="room-size-val">10 m</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:0.4rem;font-size:0.7rem;opacity:0.5">
+          <span>5 m</span>
+          <input type="range" id="room-size" min="5" max="30" value="10" step="1" style="flex:1" />
+          <span>30 m</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MediaPipe FaceMesh (pinned version) -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="spatial-audio.js"></script>
+  <script src="landmark-to-yaw.js"></script>
+  <script src="camera-head-tracker.js"></script>
+  <script src="head-tracker.js"></script>
+  <script src="spatial-viz.js"></script>
+  <script src="room-viz.js"></script>
+  <script src="webrtc.js"></script>
+  <script>
+    const localVideo    = document.getElementById('local-video');
+    const remoteVideo   = document.getElementById('remote-video');
+    const connectBtn    = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const statusEl      = document.getElementById('status');
+    const iceStatusEl   = document.getElementById('ice-status');
+    const distanceEl    = document.getElementById('distance');
+    const distanceVal   = document.getElementById('distance-val');
+
+    const signalingUrl = `ws://${location.hostname || 'localhost'}:${location.port || 8080}`;
+    const room = location.hash.slice(1) || 'default';
+
+    const spatialAudio   = new SpatialAudio();
+    const mouseTracker   = new HeadTracker();
+    const cameraTracker  = new CameraHeadTracker();
+    const vizMouse       = new SpatialViz(document.getElementById('viz-mouse'));
+    const vizCamera      = new SpatialViz(document.getElementById('viz-camera'));
+    const vizRemote      = new SpatialViz(document.getElementById('viz-remote'));
+    const roomViz        = new RoomViz(document.getElementById('room-viz'));
+
+    roomViz.onPositionChange = (az, dist) => {
+      spatialAudio.setSourcePosition(az, dist);
+    };
+
+    const roomSizeEl  = document.getElementById('room-size');
+    const roomSizeVal = document.getElementById('room-size-val');
+    roomSizeEl.addEventListener('input', () => {
+      const m = parseInt(roomSizeEl.value, 10);
+      roomSizeVal.textContent = `${m} m`;
+      roomViz.setRoomSize(m);
+    });
+
+    let mouseAzimuth    = 0;
+    let cameraAzimuth   = 0;
+    let remoteAzimuth   = 0;
+    let currentDistance = 1;
+
+    // Mouse → vizMouse only (reference)
+    mouseTracker.onHeadAngle = (az) => {
+      mouseAzimuth = az;
+      vizMouse.update(az, currentDistance);
+    };
+    mouseTracker.start(document.documentElement);
+
+    // Local camera → vizCamera + spatial audio
+    const faceStatusEl       = document.getElementById('face-status');
+    const remoteFaceStatusEl = document.getElementById('remote-face-status');
+
+    cameraTracker.onHeadAngle = (az) => {
+      cameraAzimuth = az;
+      vizCamera.update(az, currentDistance);
+      faceStatusEl.textContent = `${Math.round(az)}°`;
+      roomViz.setLocalAzimuth(az);
+      // Send our angle to peer over data channel — before spatial audio so a
+      // thrown audio error can never silently drop the data channel message.
+      if (client) client.sendData({ azimuth: az });
+      spatialAudio.setListenerOrientation(az);
+    };
+
+    // Distance slider affects all
+    distanceEl.addEventListener('input', () => {
+      currentDistance = parseFloat(distanceEl.value);
+      distanceVal.textContent = `${currentDistance.toFixed(1)} m`;
+      vizMouse.update(mouseAzimuth, currentDistance);
+      vizCamera.update(cameraAzimuth, currentDistance);
+      vizRemote.update(remoteAzimuth, currentDistance);
+      spatialAudio.setSourcePosition(0, currentDistance);
+    });
+
+    // Initial draws
+    vizMouse.update(0, 1);
+    vizCamera.update(0, 1);
+    vizRemote.update(0, 1);
+
+    let client = null;
+
+    connectBtn.addEventListener('click', async () => {
+      connectBtn.disabled = true;
+      statusEl.textContent = 'connecting…';
+
+      client = new WebRTCClient({
+        signalingUrl,
+        room,
+        localVideoEl: localVideo,
+        remoteVideoEl: remoteVideo,
+        spatialAudio,
+      });
+
+      client.onIceStateChange = (state) => {
+        const labels = { checking: 'ICE: checking…', connected: 'ICE: connected ✓',
+                         completed: 'ICE: completed ✓', failed: 'ICE: failed ✗',
+                         disconnected: 'ICE: disconnected', closed: '' };
+        iceStatusEl.textContent = labels[state] || `ICE: ${state}`;
+      };
+
+      // Remote head angle arrives via data channel → drives vizRemote
+      client.onDataMessage = ({ azimuth }) => {
+        remoteAzimuth = azimuth;
+        vizRemote.update(azimuth, currentDistance);
+        remoteFaceStatusEl.textContent = `${Math.round(azimuth)}°`;
+        roomViz.setRemoteAzimuth(azimuth);
+      };
+
+      client.onStatusChange = (s) => {
+        statusEl.textContent = s;
+        if (s === 'connected') {
+          disconnectBtn.disabled = false;
+        } else if (s === 'disconnected') {
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          cameraTracker.stop();
+          faceStatusEl.textContent = 'no face';
+          remoteFaceStatusEl.textContent = 'no face';
+          iceStatusEl.textContent = '';
+        }
+      };
+
+      client.onError = (err) => {
+        statusEl.textContent = `error: ${err.message}`;
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+      };
+
+      try {
+        await client.start();
+        // Start camera tracking — awaited so model loads before loop begins
+        faceStatusEl.textContent = 'loading…';
+        await cameraTracker.start(localVideo);
+        faceStatusEl.textContent = 'no face';
+      } catch (err) {
+        statusEl.textContent = `error: ${err.message}`;
+        connectBtn.disabled = false;
+      }
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (client) { client.disconnect(); client = null; }
+      cameraTracker.stop();
+      spatialAudio.detach();
+    });
+  </script>
+</body>
+</html>
