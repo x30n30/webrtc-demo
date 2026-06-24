@@ -29,6 +29,16 @@ def make_handler():
 
                 msg_type = msg.get("type")
 
+                if msg_type == "list-rooms":
+                    await _send(ws, {
+                        "type": "rooms-list",
+                        "rooms": [
+                            {"name": r, "count": len(e), "names": [x["name"] for x in e]}
+                            for r, e in rooms.items() if e
+                        ],
+                    })
+                    continue
+
                 if msg_type == "peek":
                     r = msg.get("room", "default")
                     entries = rooms.get(r, [])

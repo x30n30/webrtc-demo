@@ -166,6 +166,26 @@
     button.secondary { background: #444; }
     button.secondary:hover { background: #555; }
     #lobby-msg { font-size: 0.78rem; color: #f84; text-align: center; min-height: 1.2em; }
+    .lobby-rooms-header {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      opacity: 0.35;
+      text-transform: uppercase;
+      border-top: 1px solid #333;
+      padding-top: 0.8rem;
+    }
+    .room-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid #2a2a2a;
+      font-size: 0.82rem;
+    }
+    .room-row .rr-name { flex: 1; font-weight: bold; }
+    .room-row .rr-count { opacity: 0.55; font-size: 0.75rem; flex: 2; }
+    .room-row button { padding: 0.25rem 0.8rem; font-size: 0.78rem; }
+    #lobby-no-rooms { font-size: 0.78rem; opacity: 0.35; text-align: center; padding: 0.5rem 0; }
   </style>
 </head>
 <body>
@@ -188,6 +208,8 @@
         <button id="lobby-clear-btn" class="secondary">Clear Room</button>
       </div>
       <div id="lobby-msg"></div>
+      <div class="lobby-rooms-header">Active Rooms</div>
+      <div id="lobby-rooms-list"><div id="lobby-no-rooms">no active rooms</div></div>
     </div>
   </div>
 
@@ -564,20 +586,23 @@
 
     function getLobbyRoom() { return lobbyRoomEl.value.trim() || 'default'; }
 
-    async function peekRoom() {
-      const r = getLobbyRoom();
+    async function listRooms() {
       return new Promise((resolve) => {
         const ws = new WebSocket(signalingUrl);
-        const done = (result) => { try { ws.close(); } catch {} resolve(result); };
-        ws.onopen    = () => ws.send(JSON.stringify({ type: 'peek', room: r }));
-        ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'room-status') done(m); };
-        ws.onerror   = () => done({ count: 0, names: [] });
-        setTimeout(() => done({ count: 0, names: [] }), 3000);
+        const done = (r) => { try { ws.close(); } catch {} resolve(r); };
+        ws.onopen    = () => ws.send(JSON.stringify({ type: 'list-rooms' }));
+        ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'rooms-list') done(m.rooms); };
+        ws.onerror   = () => done([]);
+        setTimeout(() => done([]), 3000);
       });
     }
 
-    async function updateLobbyStatus() {
-      const { count, names } = await peekRoom();
+    function renderRoomStatus(rooms) {
+      const current = getLobbyRoom();
+      const entry   = rooms.find(r => r.name === current);
+      const count   = entry ? entry.count : 0;
+      const names   = entry ? entry.names : [];
+
       if (count === 0) {
         lobbyStatusEl.className = 'open';
         lobbyStatusEl.textContent = "Room is empty — you'll be first";
@@ -589,6 +614,37 @@
         lobbyStatusEl.textContent = 'Room is full (2/2)';
       }
       lobbyJoinBtn.disabled = count >= 2;
+    }
+
+    function renderRoomsList(rooms) {
+      const listEl = document.getElementById('lobby-rooms-list');
+      if (rooms.length === 0) {
+        listEl.innerHTML = '<div id="lobby-no-rooms">no active rooms</div>';
+        return;
+      }
+      listEl.innerHTML = rooms.map(r => {
+        const countLabel = r.count === 2
+          ? `full — ${r.names.join(' & ')}`
+          : `${r.count}/2${r.names.length ? ' — ' + r.names.join(' & ') : ''}`;
+        const disabled = r.count >= 2 ? 'disabled' : '';
+        return `<div class="room-row">
+          <span class="rr-name">${r.name}</span>
+          <span class="rr-count">${countLabel}</span>
+          <button ${disabled} onclick="lobbyQuickJoin('${r.name}')">Join</button>
+        </div>`;
+      }).join('');
+    }
+
+    window.lobbyQuickJoin = (roomName) => {
+      lobbyRoomEl.value = roomName;
+      lobbyJoinBtn.focus();
+      updateLobbyStatus();
+    };
+
+    async function updateLobbyStatus() {
+      const rooms = await listRooms();
+      renderRoomStatus(rooms);
+      renderRoomsList(rooms);
     }
 
     function showLobby() {

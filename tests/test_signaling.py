@@ -184,6 +184,43 @@ async def test_client_disconnect_triggers_peer_left(server):
 
 
 # Test 9
+async def test_list_rooms_returns_active_rooms(server):
+    srv, port = server
+    ws1 = await connect(port)
+    ws2 = await connect(port)
+
+    await send_msg(ws1, {"type": "join", "room": "room-listed", "name": "Alice"})
+
+    pending = asyncio.create_task(next_message(ws2))
+    await send_msg(ws2, {"type": "list-rooms"})
+    msg = await pending
+
+    assert msg["type"] == "rooms-list"
+    assert len(msg["rooms"]) == 1
+    assert msg["rooms"][0]["name"] == "room-listed"
+    assert msg["rooms"][0]["count"] == 1
+    assert "Alice" in msg["rooms"][0]["names"]
+
+    await ws1.close()
+    await ws2.close()
+
+
+# Test 10 (was 9)
+async def test_list_rooms_empty_when_no_rooms(server):
+    srv, port = server
+    ws = await connect(port)
+
+    pending = asyncio.create_task(next_message(ws))
+    await send_msg(ws, {"type": "list-rooms"})
+    msg = await pending
+
+    assert msg["type"] == "rooms-list"
+    assert msg["rooms"] == []
+
+    await ws.close()
+
+
+# Test 11 (was 10)
 async def test_peer_joined_includes_joining_peers_name(server):
     srv, port = server
     ws1 = await connect(port)
