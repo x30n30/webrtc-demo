@@ -93,6 +93,11 @@ class WebRTCClient {
   }
 
   async _getLocalMedia() {
+    if (!navigator.mediaDevices) {
+      // Plain HTTP on a non-localhost origin — camera unavailable, proceed without it
+      if (this.onError) this.onError(new Error('Camera unavailable on plain HTTP — connecting without local video'));
+      return;
+    }
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
