@@ -109,7 +109,7 @@ async def start_server(port: int):
 
     server = await websockets.serve(
         handler,
-        "localhost",
+        "",
         port,
         process_request=_process_request,
     )
