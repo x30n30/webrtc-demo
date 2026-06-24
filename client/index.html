@@ -198,7 +198,7 @@
   <div class="videos">
     <div class="tile">
       <video id="local-video" class="local-border" autoplay playsinline muted></video>
-      <span style="color:#4af">You</span>
+      <span style="color:#4af" id="local-name">You</span>
     </div>
     <div class="tile">
       <video id="remote-video" class="remote-border" autoplay playsinline muted></video>
@@ -555,6 +555,7 @@
     const lobbyClearBtn = document.getElementById('lobby-clear-btn');
     const lobbyMsgEl    = document.getElementById('lobby-msg');
     const remoteNameEl  = document.getElementById('remote-name');
+    const localNameEl   = document.getElementById('local-name');
 
     let peekTimer = null;
 
@@ -591,6 +592,8 @@
       appEl.style.display   = 'none';
       lobbyEl.style.display = 'flex';
       lobbyMsgEl.textContent = '';
+      localNameEl.textContent = 'You';
+      remoteNameEl.textContent = 'Remote';
       updateLobbyStatus();
       peekTimer = setInterval(updateLobbyStatus, 3000);
     }
@@ -612,6 +615,8 @@
       if (!name) { lobbyMsgEl.textContent = 'Please enter your name.'; return; }
       currentName = name;
       currentRoom = getLobbyRoom();
+      localNameEl.textContent = name;
+      remoteNameEl.textContent = 'waiting…';
       showApp();
       connectBtn.click();
     });

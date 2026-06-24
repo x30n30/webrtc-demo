@@ -19,6 +19,7 @@ import websockets
 import websockets.exceptions
 from websockets.datastructures import Headers
 from websockets.http11 import Response, Request
+from server.signaling import make_handler
 
 # Resolve client directory relative to this file
 _REPO_ROOT = pathlib.Path(__file__).parent.parent
@@ -60,52 +61,7 @@ async def _process_request(connection, request: Request):
 
 
 async def start_server(port: int):
-    rooms: dict = {}
-
-    async def handler(ws):
-        room_id = None
-        try:
-            async for raw in ws:
-                try:
-                    msg = json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
-
-                msg_type = msg.get("type")
-
-                if msg_type == "join":
-                    room_id = msg["room"]
-                    if room_id not in rooms:
-                        rooms[room_id] = [ws]
-                    else:
-                        peers = rooms[room_id]
-                        if len(peers) >= 2:
-                            await _send(ws, {"type": "room-full"})
-                            continue
-                        peers.append(ws)
-                        await _send(peers[0], {"type": "peer-joined"})
-                    continue
-
-                peer = _get_other_peer(ws, room_id, rooms)
-                if peer is None:
-                    continue
-
-                if msg_type == "offer":
-                    await _send(peer, {"type": "offer", "sdp": msg["sdp"]})
-                elif msg_type == "answer":
-                    await _send(peer, {"type": "answer", "sdp": msg["sdp"]})
-                elif msg_type == "ice-candidate":
-                    await _send(peer, {"type": "ice-candidate", "candidate": msg["candidate"]})
-        finally:
-            if room_id is not None:
-                peers = rooms.get(room_id)
-                if peers:
-                    remaining = [p for p in peers if p is not ws]
-                    if not remaining:
-                        del rooms[room_id]
-                    else:
-                        rooms[room_id] = remaining
-                        await _send(remaining[0], {"type": "peer-left"})
+    _rooms, handler = make_handler()
 
     server = await websockets.serve(
         handler,

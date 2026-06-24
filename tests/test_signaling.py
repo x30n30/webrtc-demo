@@ -112,6 +112,7 @@ async def test_offer_forwarded_to_peer(server):
     await send_msg(ws1, {"type": "join", "room": "room-c"})
     await send_msg(ws2, {"type": "join", "room": "room-c"})
     await next_message(ws1)  # consume peer-joined
+    await next_message(ws2)  # consume peer-info
 
     pending = asyncio.create_task(next_message(ws2))
     await send_msg(ws1, {"type": "offer", "sdp": {"type": "offer", "sdp": "fake-sdp"}})
@@ -152,6 +153,7 @@ async def test_ice_candidate_forwarded_to_peer(server):
     await send_msg(ws1, {"type": "join", "room": "room-e"})
     await send_msg(ws2, {"type": "join", "room": "room-e"})
     await next_message(ws1)  # consume peer-joined
+    await next_message(ws2)  # consume peer-info
 
     pending = asyncio.create_task(next_message(ws2))
     await send_msg(ws1, {"type": "ice-candidate", "candidate": {"candidate": "fake-ice"}})

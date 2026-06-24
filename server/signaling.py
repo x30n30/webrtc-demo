@@ -11,12 +11,10 @@ import websockets
 import websockets.exceptions
 
 
-async def start_server(port: int):
-    """Start a pure WebSocket signaling server (used by tests and production).
+def make_handler():
+    """Return a fresh (rooms, handler) pair.
 
-    Each call gets its own rooms dict, so multiple servers can run independently.
-    Returns the websockets Server object; caller can read
-    server.sockets[0].getsockname()[1] for the bound port when port=0.
+    Each call gets its own isolated rooms dict — used by http_server and tests.
     """
     rooms: dict = {}
 
@@ -61,6 +59,7 @@ async def start_server(port: int):
                             continue
                         peers.append({"ws": ws, "name": name})
                         await _send(peers[0]["ws"], {"type": "peer-joined", "name": name})
+                        await _send(ws, {"type": "peer-info", "name": peers[0]["name"]})
                     continue
 
                 peer = _get_other_peer(ws, room_id, rooms)
@@ -87,6 +86,12 @@ async def start_server(port: int):
                         left_name = my_entry["name"] if my_entry else "Anonymous"
                         await _send(remaining[0]["ws"], {"type": "peer-left", "name": left_name})
 
+    return rooms, handler
+
+
+async def start_server(port: int):
+    """Start a pure WebSocket signaling server (used by tests and standalone)."""
+    _rooms, handler = make_handler()
     server = await websockets.serve(handler, "localhost", port)
     return server
 

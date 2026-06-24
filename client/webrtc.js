@@ -198,6 +198,10 @@ class WebRTCClient {
           }
           break;
 
+        case 'peer-info':
+          if (this.onPeerName) this.onPeerName(msg.name || '');
+          break;
+
         case 'peer-left':
           if (this.onPeerName) this.onPeerName('');
           this._status('disconnected');
@@ -205,6 +209,10 @@ class WebRTCClient {
 
         case 'room-full':
           if (this.onError) this.onError(new Error('Room is full'));
+          break;
+
+        case 'room-cleared':
+          this._status('disconnected');
           break;
       }
     } catch (err) {
