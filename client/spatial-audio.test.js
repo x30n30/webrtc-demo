@@ -51,6 +51,12 @@ class MockAudioContext {
     this._sources.push(node);
     return node;
   }
+  createMediaElementSource(el) {
+    const node = new MockAudioNode();
+    node._element = el;
+    this._sources.push(node);
+    return node;
+  }
   createPanner() {
     const node = new MockPannerNode();
     this._panners.push(node);
@@ -181,4 +187,49 @@ test('setListenerOrientation(90) points listener right: forwardX≈1, forwardZ�
   const { listener } = audioContextInstances[0];
   expect(listener.forwardX.value).toBeCloseTo(1, 5);
   expect(listener.forwardZ.value).toBeCloseTo(0, 5);
+});
+
+// Test 10
+test('attachElement connects mediaElementSource → panner → destination', () => {
+  const sa = new SpatialAudio();
+  const videoEl = { tagName: 'VIDEO' };
+  sa.attachElement(videoEl);
+
+  const ctx    = audioContextInstances[0];
+  const source = ctx._sources[0];
+  const panner = ctx._panners[0];
+
+  expect(source._element).toBe(videoEl);
+  expect(source._connectedTo).toContain(panner);
+  expect(panner._connectedTo).toContain(ctx.destination);
+});
+
+// Test 11
+test('attachElement sets isAttached to true', () => {
+  const sa = new SpatialAudio();
+  expect(sa.isAttached).toBe(false);
+  sa.attachElement({ tagName: 'VIDEO' });
+  expect(sa.isAttached).toBe(true);
+});
+
+// Test 12
+test('attachElement after attachTrack replaces graph', () => {
+  const sa = new SpatialAudio();
+  sa.attachTrack(new MockMediaStreamTrack('audio'));
+  sa.attachElement({ tagName: 'VIDEO' });
+
+  expect(sa.isAttached).toBe(true);
+  expect(audioContextInstances[0]._closed).toBe(true);
+  expect(audioContextInstances[1]._closed).toBe(false);
+});
+
+// Test 13
+test('attachElement + setSourcePosition(90, 3) sets panner x≈3, z≈0', () => {
+  const sa = new SpatialAudio();
+  sa.attachElement({ tagName: 'VIDEO' });
+  sa.setSourcePosition(90, 3);
+
+  const panner = audioContextInstances[0]._panners[0];
+  expect(panner.positionX.value).toBeCloseTo(3, 5);
+  expect(panner.positionZ.value).toBeCloseTo(0, 5);
 });

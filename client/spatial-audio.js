@@ -10,10 +10,7 @@ class SpatialAudio {
   }
 
   attachTrack(track) {
-    // Replace any existing graph
-    if (this._ctx) {
-      this._teardown();
-    }
+    if (this._ctx) this._teardown();
 
     const ctx = new AudioContext();
     this._ctx = ctx;
@@ -22,6 +19,22 @@ class SpatialAudio {
     const source = ctx.createMediaStreamSource(stream);
     this._source = source;
 
+    this._connectPanner(ctx, source);
+  }
+
+  attachElement(videoEl) {
+    if (this._ctx) this._teardown();
+
+    const ctx = new AudioContext();
+    this._ctx = ctx;
+
+    const source = ctx.createMediaElementSource(videoEl);
+    this._source = source;
+
+    this._connectPanner(ctx, source);
+  }
+
+  _connectPanner(ctx, source) {
     const panner = ctx.createPanner();
     panner.panningModel = 'HRTF';
     panner.distanceModel = 'inverse';

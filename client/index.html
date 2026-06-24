@@ -86,6 +86,34 @@
       opacity: 0.4;
       text-align: center;
     }
+    .file-player {
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 1rem 1.5rem;
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .file-player h2 {
+      font-size: 0.75rem;
+      letter-spacing: 0.12em;
+      opacity: 0.45;
+      text-transform: uppercase;
+    }
+    #file-video {
+      display: none;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #1a1a1a;
+      border: 1px solid #555;
+      border-radius: 4px;
+    }
+    #file-video.loaded { display: block; }
+    .file-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    #file-status { font-size: 0.8rem; opacity: 0.5; margin-left: 0.5rem; }
+    button.toggled { background: #a62; }
   </style>
 </head>
 <body>
@@ -107,6 +135,21 @@
     <button id="disconnect-btn" disabled>Disconnect</button>
     <span id="status">idle</span>
     <span id="ice-status" style="font-size:0.75rem;opacity:0.5"></span>
+  </div>
+
+  <!-- ── File Player ─────────────────────────────────────────────────── -->
+  <div class="file-player">
+    <h2>File Player — emulate remote participant</h2>
+    <input type="file" id="file-input" accept="video/*" style="display:none" />
+    <video id="file-video" controls></video>
+    <div class="file-controls">
+      <button id="file-choose-btn">Choose file</button>
+      <button id="file-play-btn" disabled>Play</button>
+      <button id="file-pause-btn" disabled>Pause</button>
+      <button id="file-stop-btn" disabled>Stop</button>
+      <button id="file-track-btn" disabled>Head track: off</button>
+      <span id="file-status">no file</span>
+    </div>
   </div>
 
   <div class="bottom">
@@ -294,7 +337,113 @@
       if (client) { client.disconnect(); client = null; }
       cameraTracker.stop();
       spatialAudio.detach();
+      fileAttached = false;
     });
+
+    // ── File Player ────────────────────────────────────────────────────────
+    const fileInput     = document.getElementById('file-input');
+    const fileVideo     = document.getElementById('file-video');
+    const fileChooseBtn = document.getElementById('file-choose-btn');
+    const filePlayBtn   = document.getElementById('file-play-btn');
+    const filePauseBtn  = document.getElementById('file-pause-btn');
+    const fileStopBtn   = document.getElementById('file-stop-btn');
+    const fileTrackBtn  = document.getElementById('file-track-btn');
+    const fileStatusEl  = document.getElementById('file-status');
+
+    const fileTracker = new CameraHeadTracker();
+    let fileAttached  = false;
+    let fileTracking  = false;
+
+    fileChooseBtn.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      // Detach existing audio graph so a fresh MediaElementSource can be created
+      if (fileAttached) {
+        spatialAudio.detach();
+        fileAttached = false;
+      }
+      fileTracker.stop();
+      fileTracking = false;
+      fileTrackBtn.textContent = 'Head track: off';
+      fileTrackBtn.classList.remove('toggled');
+      faceStatusEl.textContent = 'no face';
+
+      if (fileVideo._objectUrl) URL.revokeObjectURL(fileVideo._objectUrl);
+      fileVideo._objectUrl = URL.createObjectURL(file);
+      fileVideo.src = fileVideo._objectUrl;
+      fileVideo.classList.add('loaded');
+      fileStatusEl.textContent = file.name;
+
+      filePlayBtn.disabled  = false;
+      filePauseBtn.disabled = true;
+      fileStopBtn.disabled  = true;
+      fileTrackBtn.disabled = false;
+    });
+
+    filePlayBtn.addEventListener('click', async () => {
+      if (!fileAttached) {
+        spatialAudio.attachElement(fileVideo);
+        fileAttached = true;
+      }
+      await fileVideo.play();
+      fileStatusEl.textContent = 'playing';
+      filePlayBtn.disabled  = true;
+      filePauseBtn.disabled = false;
+      fileStopBtn.disabled  = false;
+    });
+
+    filePauseBtn.addEventListener('click', () => {
+      fileVideo.pause();
+      fileStatusEl.textContent = 'paused';
+      filePlayBtn.disabled  = false;
+      filePauseBtn.disabled = true;
+    });
+
+    fileStopBtn.addEventListener('click', () => {
+      fileVideo.pause();
+      fileVideo.currentTime = 0;
+      fileStatusEl.textContent = 'stopped';
+      filePlayBtn.disabled  = false;
+      filePauseBtn.disabled = true;
+    });
+
+    fileVideo.addEventListener('ended', () => {
+      fileStatusEl.textContent = 'ended';
+      filePlayBtn.disabled  = false;
+      filePauseBtn.disabled = true;
+    });
+
+    // Head tracking toggle — reuses CameraHeadTracker on the file video element
+    fileTrackBtn.addEventListener('click', async () => {
+      if (!fileTracking) {
+        faceStatusEl.textContent = 'loading…';
+        await fileTracker.start(fileVideo);
+        fileTracking = true;
+        fileTrackBtn.textContent = 'Head track: on';
+        fileTrackBtn.classList.add('toggled');
+      } else {
+        fileTracker.stop();
+        fileTracking = false;
+        fileTrackBtn.textContent = 'Head track: off';
+        fileTrackBtn.classList.remove('toggled');
+        faceStatusEl.textContent = 'no face';
+      }
+    });
+
+    // File head angle → listener orientation (same path as webcam tracker)
+    fileTracker.onHeadAngle = (az) => {
+      cameraAzimuth = az;
+      vizCamera.update(az, currentDistance);
+      faceStatusEl.textContent = `${Math.round(az)}° (file)`;
+      roomViz.setLocalAzimuth(az);
+      spatialAudio.setListenerOrientation(az);
+    };
+
+    // Reset fileAttached when WebRTC takes over the audio graph
+    connectBtn.addEventListener('click', () => { fileAttached = false; }, { capture: true });
   </script>
 </body>
 </html>
