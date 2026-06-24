@@ -193,7 +193,10 @@
 
   <!-- ── App ────────────────────────────────────────────────────────────── -->
   <div id="app" style="display:none;width:100%;flex-direction:column;align-items:center;gap:1.5rem">
-  <h1>WebRTC — Spatial Audio</h1>
+  <div style="text-align:center">
+    <h1>WebRTC — Spatial Audio</h1>
+    <div style="font-size:0.75rem;opacity:0.45;margin-top:0.3rem;letter-spacing:0.08em">Room: <span id="app-room-name">default</span></div>
+  </div>
 
   <div class="videos">
     <div class="tile">
@@ -617,6 +620,7 @@
       currentRoom = getLobbyRoom();
       localNameEl.textContent = name;
       remoteNameEl.textContent = 'waiting…';
+      document.getElementById('app-room-name').textContent = currentRoom;
       showApp();
       connectBtn.click();
     });
