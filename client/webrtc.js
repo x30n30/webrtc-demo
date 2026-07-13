@@ -6,26 +6,34 @@ const DEFAULT_ICE_SERVERS = [
 ];
 
 class WebRTCClient {
-  constructor({ signalingUrl, room, localVideoEl, remoteVideoEl, spatialAudio = null, iceServers = DEFAULT_ICE_SERVERS, name = '' }) {
+  constructor({ signalingUrl, room, localVideoEl,
+                spatialAudio = null, iceServers = DEFAULT_ICE_SERVERS, name = '' }) {
     this._signalingUrl = signalingUrl;
-    this._room = room;
-    this._name = name;
+    this._room         = room;
+    this._name         = name;
     this._localVideoEl = localVideoEl;
-    this._remoteVideoEl = remoteVideoEl;
     this._spatialAudio = spatialAudio;
     this._iceServers   = iceServers;
 
-    this._ws = null;
-    this._pc = null;
-    this._dc = null;
+    this._ws          = null;
+    this._myPeerId    = null;
     this._localStream = null;
 
-    // Callbacks — set by caller
-    this.onStatusChange  = null;
-    this.onIceStateChange = null;
-    this.onError         = null;
-    this.onDataMessage   = null;
-    this.onPeerName      = null;
+    // peerId → { pc, dc, name, remoteVideoEl }
+    this._peers = new Map();
+
+    // ── Callbacks set by caller ───────────────────────────────────────────
+    // Called when a peer joins. Must return an HTMLVideoElement for that peer.
+    this.onPeerJoined     = null;   // (peerId, name) → HTMLVideoElement
+    // Called when a peer leaves.
+    this.onPeerLeft       = null;   // (peerId, name)
+    // Data-channel message from a specific peer.
+    this.onDataMessage    = null;   // (peerId, data)
+    // ICE state change for a specific peer connection.
+    this.onIceStateChange = null;   // (peerId, iceState)
+    // Overall room status: 'connecting' | 'waiting' | 'connected' | 'disconnected'
+    this.onStatusChange   = null;   // (status)
+    this.onError          = null;   // (Error)
   }
 
   async start() {
@@ -34,21 +42,28 @@ class WebRTCClient {
     await this._connectSignaling();
   }
 
-  sendData(data) {
-    if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(data));
+  /**
+   * Send data to one peer (by peerId) or broadcast to all open data channels.
+   */
+  sendData(data, peerId = null) {
+    const payload = JSON.stringify(data);
+    if (peerId) {
+      const peer = this._peers.get(peerId);
+      if (peer?.dc?.readyState === 'open') peer.dc.send(payload);
+    } else {
+      for (const peer of this._peers.values()) {
+        if (peer.dc?.readyState === 'open') peer.dc.send(payload);
+      }
     }
   }
 
   disconnect() {
-    if (this._dc) {
-      this._dc.close();
-      this._dc = null;
+    for (const peer of this._peers.values()) {
+      peer.dc?.close();
+      peer.pc?.close();
     }
-    if (this._pc) {
-      this._pc.close();
-      this._pc = null;
-    }
+    this._peers.clear();
+
     if (this._ws) {
       this._ws.close();
       this._ws = null;
@@ -76,17 +91,12 @@ class WebRTCClient {
 
       ws.addEventListener('message', (event) => {
         let msg;
-        try {
-          msg = JSON.parse(event.data);
-        } catch {
-          return;
-        }
+        try { msg = JSON.parse(event.data); } catch { return; }
         this._handleSignal(msg);
       });
 
       ws.addEventListener('close', () => {
-        // Only report disconnected if we weren't the ones closing
-        if (this._pc) this._status('disconnected');
+        if (this._peers.size > 0) this._status('disconnected');
       });
 
       ws.addEventListener('error', (err) => {
@@ -98,15 +108,13 @@ class WebRTCClient {
 
   async _getLocalMedia() {
     if (!navigator.mediaDevices) {
-      // Plain HTTP on a non-localhost origin — camera unavailable, proceed without it
       if (this.onError) this.onError(new Error('Camera unavailable on plain HTTP — connecting without local video'));
       return;
     }
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    } catch (videoErr) {
-      // Camera may be in use by another tab — fall back to audio only
+    } catch {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
         if (this.onError) this.onError(new Error('Camera unavailable — audio only'));
@@ -120,54 +128,50 @@ class WebRTCClient {
     this._localVideoEl.muted = true;
   }
 
-  _createPeerConnection() {
+  /**
+   * Create an RTCPeerConnection for the given peerId.
+   * The peer entry MUST already exist in this._peers before calling.
+   */
+  _createPeerConnection(peerId) {
     const pc = new RTCPeerConnection({ iceServers: this._iceServers });
-    this._pc = pc;
 
-    // ICE connection state changes
     pc.addEventListener('iceconnectionstatechange', () => {
-      if (this.onIceStateChange) this.onIceStateChange(pc.iceConnectionState);
+      if (this.onIceStateChange) this.onIceStateChange(peerId, pc.iceConnectionState);
     });
 
-    // Forward local ICE candidates to peer via signaling
     pc.addEventListener('icecandidate', ({ candidate }) => {
-      if (candidate) {
-        this._send({ type: 'ice-candidate', candidate });
-      }
+      if (candidate) this._send({ type: 'ice-candidate', to: peerId, candidate });
     });
 
-    // Attach remote tracks
     pc.addEventListener('track', ({ track, streams }) => {
+      const peer = this._peers.get(peerId);
+      if (!peer) return;
+
       if (track.kind === 'audio') {
         if (this._spatialAudio) {
-          // Route through spatial audio pipeline; mute the HTML element to avoid doubling
           track.enabled = true;
-          this._remoteVideoEl.muted = true;
+          if (peer.remoteVideoEl) peer.remoteVideoEl.muted = true;
           this._spatialAudio.attachTrack(track);
         } else {
-          // No spatial pipeline yet — keep muted
           track.enabled = false;
         }
       }
 
-      if (streams && streams[0]) {
-        this._remoteVideoEl.srcObject = streams[0];
+      if (streams?.[0] && peer.remoteVideoEl) {
+        peer.remoteVideoEl.srcObject = streams[0];
       }
     });
 
-    // Responder receives data channel created by initiator
     pc.addEventListener('datachannel', ({ channel }) => {
-      this._dc = channel;
+      const peer = this._peers.get(peerId);
+      if (peer) peer.dc = channel;
       channel.addEventListener('message', ({ data }) => {
-        if (this.onDataMessage) this.onDataMessage(JSON.parse(data));
+        if (this.onDataMessage) this.onDataMessage(peerId, JSON.parse(data));
       });
     });
 
-    // Add local tracks to the connection
     if (this._localStream) {
-      this._localStream.getTracks().forEach((track) => {
-        this._pc.addTrack(track, this._localStream);
-      });
+      this._localStream.getTracks().forEach((track) => pc.addTrack(track, this._localStream));
     }
 
     return pc;
@@ -176,40 +180,83 @@ class WebRTCClient {
   async _handleSignal(msg) {
     try {
       switch (msg.type) {
-        case 'peer-joined':
-          if (this.onPeerName) this.onPeerName(msg.name || '');
-          await this._startOffer();
-          break;
 
-        case 'offer':
-          await this._handleOffer(msg.sdp);
+        // Server assigns our peerId and lists who is already in the room.
+        // Pre-create peer slots — offers from existing peers will arrive shortly.
+        case 'welcome': {
+          this._myPeerId = msg.peerId;
+          for (const { peerId, name } of (msg.peers || [])) {
+            const remoteVideoEl = this.onPeerJoined ? this.onPeerJoined(peerId, name) : null;
+            const pc = this._createPeerConnection(peerId);
+            this._peers.set(peerId, { pc, dc: null, name, remoteVideoEl });
+          }
+          this._updateStatus();
           break;
+        }
 
-        case 'answer':
-          if (this._pc) {
-            await this._pc.setRemoteDescription(msg.sdp);
-            this._status('connected');
+        // A new peer joined — we are an existing peer, so we initiate.
+        case 'peer-joined': {
+          const { peerId, name } = msg;
+          const remoteVideoEl = this.onPeerJoined ? this.onPeerJoined(peerId, name || '') : null;
+          const pc = this._createPeerConnection(peerId);
+          const dc = pc.createDataChannel('head-tracking');
+          dc.addEventListener('message', ({ data }) => {
+            if (this.onDataMessage) this.onDataMessage(peerId, JSON.parse(data));
+          });
+          this._peers.set(peerId, { pc, dc, name: name || '', remoteVideoEl });
+
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          this._send({ type: 'offer', to: peerId, sdp: pc.localDescription });
+          break;
+        }
+
+        // Incoming offer from an existing peer (we are the new joiner / responder).
+        case 'offer': {
+          const fromId = msg.from;
+          let peer = this._peers.get(fromId);
+          if (!peer) {
+            // Shouldn't happen after welcome pre-creates slots, but handle gracefully.
+            const remoteVideoEl = this.onPeerJoined ? this.onPeerJoined(fromId, '') : null;
+            const pc = this._createPeerConnection(fromId);
+            peer = { pc, dc: null, name: '', remoteVideoEl };
+            this._peers.set(fromId, peer);
+          }
+          await peer.pc.setRemoteDescription(msg.sdp);
+          const answer = await peer.pc.createAnswer();
+          await peer.pc.setLocalDescription(answer);
+          this._send({ type: 'answer', to: fromId, sdp: peer.pc.localDescription });
+          this._updateStatus();
+          break;
+        }
+
+        case 'answer': {
+          const peer = this._peers.get(msg.from);
+          if (peer) {
+            await peer.pc.setRemoteDescription(msg.sdp);
+            this._updateStatus();
           }
           break;
+        }
 
-        case 'ice-candidate':
-          if (this._pc) {
-            await this._pc.addIceCandidate(msg.candidate);
+        case 'ice-candidate': {
+          const peer = this._peers.get(msg.from);
+          if (peer) await peer.pc.addIceCandidate(msg.candidate);
+          break;
+        }
+
+        case 'peer-left': {
+          const { peerId, name } = msg;
+          const peer = this._peers.get(peerId);
+          if (peer) {
+            peer.dc?.close();
+            peer.pc?.close();
+            this._peers.delete(peerId);
           }
+          if (this.onPeerLeft) this.onPeerLeft(peerId, name || '');
+          this._updateStatus();
           break;
-
-        case 'peer-info':
-          if (this.onPeerName) this.onPeerName(msg.name || '');
-          break;
-
-        case 'peer-left':
-          if (this.onPeerName) this.onPeerName('');
-          this._status('disconnected');
-          break;
-
-        case 'room-full':
-          if (this.onError) this.onError(new Error('Room is full'));
-          break;
+        }
 
         case 'room-cleared':
           this._status('disconnected');
@@ -220,27 +267,8 @@ class WebRTCClient {
     }
   }
 
-  async _startOffer() {
-    this._createPeerConnection();
-
-    // Initiator owns the data channel
-    this._dc = this._pc.createDataChannel('head-tracking');
-    this._dc.addEventListener('message', ({ data }) => {
-      if (this.onDataMessage) this.onDataMessage(JSON.parse(data));
-    });
-
-    const offer = await this._pc.createOffer();
-    await this._pc.setLocalDescription(offer);
-    this._send({ type: 'offer', sdp: this._pc.localDescription });
-  }
-
-  async _handleOffer(sdp) {
-    this._createPeerConnection();
-    await this._pc.setRemoteDescription(sdp);
-    const answer = await this._pc.createAnswer();
-    await this._pc.setLocalDescription(answer);
-    this._send({ type: 'answer', sdp: this._pc.localDescription });
-    this._status('connected');
+  _updateStatus() {
+    this._status(this._peers.size > 0 ? 'connected' : 'waiting');
   }
 
   _send(msg) {
