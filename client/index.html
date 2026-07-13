@@ -55,6 +55,7 @@
     }
     button:disabled { background: #444; cursor: default; }
     #status { font-size: 0.85rem; opacity: 0.7; }
+    #status.error { color: #f84; opacity: 1; font-weight: bold; }
     .bottom {
       display: flex;
       gap: 2rem;
@@ -457,8 +458,9 @@
     const distanceVal   = document.getElementById('distance-val');
 
     const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsPort  = location.port || (location.protocol === 'https:' ? '443' : '80');
-    const signalingUrl = `${wsProto}://${location.hostname || 'localhost'}:${wsPort}`;
+    const signalingUrl = location.port
+      ? `${wsProto}://${location.hostname}:${location.port}`
+      : `${wsProto}://${location.hostname}`;
     const room = location.hash.slice(1) || 'default';
 
     const spatialAudio   = new SpatialAudio();
@@ -626,9 +628,15 @@
     let currentName = '';
     let currentRoom = location.hash.slice(1) || 'default';
 
-    connectBtn.addEventListener('click', async () => {
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.className = isError ? 'error' : '';
+    }
+
+    async function startConnection() {
+      fileAttached = false;
       connectBtn.disabled = true;
-      statusEl.textContent = 'connecting…';
+      setStatus('allow camera access…');
 
       client = new WebRTCClient({
         signalingUrl,
@@ -697,7 +705,7 @@
       };
 
       client.onStatusChange = (s) => {
-        statusEl.textContent = s;
+        setStatus(s);
         if (s === 'connected' || s === 'waiting') {
           disconnectBtn.disabled = false;
           wsEl.style.display = '';
@@ -715,22 +723,25 @@
       };
 
       client.onError = (err) => {
-        statusEl.textContent = `error: ${err.message}`;
+        setStatus(`error: ${err.message}`, true);
         connectBtn.disabled = false;
         disconnectBtn.disabled = true;
       };
 
       try {
         await client.start();
+        setStatus('connecting…');
         // Start camera tracking — awaited so model loads before loop begins
         faceStatusEl.textContent = 'loading…';
         await cameraTracker.start(localVideo);
         faceStatusEl.textContent = 'no face';
       } catch (err) {
-        statusEl.textContent = `error: ${err.message}`;
+        setStatus(`error: ${err.message}`, true);
         connectBtn.disabled = false;
       }
-    });
+    }
+
+    connectBtn.addEventListener('click', startConnection);
 
     disconnectBtn.addEventListener('click', () => {
       if (client) { client.disconnect(); client = null; }
@@ -852,8 +863,6 @@
       spatialAudio.setListenerOrientation(az);
     };
 
-    // Reset fileAttached when WebRTC takes over the audio graph
-    connectBtn.addEventListener('click', () => { fileAttached = false; }, { capture: true });
 
     // ── Lobby ──────────────────────────────────────────────────────────────
     const lobbyEl       = document.getElementById('lobby');
@@ -946,7 +955,7 @@
       updateLobbyStatus();
     });
 
-    lobbyJoinBtn.addEventListener('click', () => {
+    lobbyJoinBtn.addEventListener('click', async () => {
       const name = lobbyNameEl.value.trim();
       if (!name) { lobbyMsgEl.textContent = 'Please enter your name.'; return; }
       currentName = name;
@@ -954,7 +963,7 @@
       localNameEl.textContent = name;
       document.getElementById('app-room-name').textContent = currentRoom;
       showApp();
-      connectBtn.click();
+      await startConnection();
     });
 
     lobbyClearBtn.addEventListener('click', () => {
