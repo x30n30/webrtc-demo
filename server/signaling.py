@@ -1,25 +1,33 @@
 """
-WebSocket signaling server — asyncio port of signaling.js.
+WebSocket signaling server — multi-peer edition.
 
-rooms: dict[roomId, list[{"ws": ws, "name": str}]]  — max 2 peers per room
+Protocol changes vs 2-peer original:
+  join        → server replies {type:"welcome", peerId, peers:[{peerId,name}]}
+                all existing peers receive {type:"peer-joined", peerId, name}
+  offer/answer/ice-candidate  must carry "to": peerId
+                server stamps "from": peerId and forwards
+  disconnect  → all remaining peers receive {type:"peer-left", peerId, name}
+  No room-size limit.
+
+Backwards-compat messages kept:
+  list-rooms, peek, clear-room
 """
 
 import asyncio
 import json
 import os
+import uuid
 import websockets
 import websockets.exceptions
 
 
 def make_handler():
-    """Return a fresh (rooms, handler) pair.
-
-    Each call gets its own isolated rooms dict — used by http_server and tests.
-    """
+    """Return a fresh (rooms, handler) pair — isolated rooms dict per call."""
     rooms: dict = {}
 
     async def handler(ws):
         room_id = None
+        peer_id = None
         try:
             async for raw in ws:
                 try:
@@ -28,6 +36,8 @@ def make_handler():
                     continue
 
                 msg_type = msg.get("type")
+
+                # ── Utility messages (no room membership required) ──────────
 
                 if msg_type == "list-rooms":
                     await _send(ws, {
@@ -57,44 +67,68 @@ def make_handler():
                         await entry["ws"].close()
                     continue
 
+                # ── Join ────────────────────────────────────────────────────
+
                 if msg_type == "join":
                     room_id = msg["room"]
                     name = msg.get("name", "Anonymous")
+                    peer_id = str(uuid.uuid4())
+
+                    existing = rooms.get(room_id, [])
+
+                    # Tell new peer their ID and who is already in the room
+                    await _send(ws, {
+                        "type": "welcome",
+                        "peerId": peer_id,
+                        "peers": [{"peerId": e["peerId"], "name": e["name"]} for e in existing],
+                    })
+
+                    # Notify every existing peer about the newcomer
+                    for entry in existing:
+                        await _send(entry["ws"], {
+                            "type": "peer-joined",
+                            "peerId": peer_id,
+                            "name": name,
+                        })
+
                     if room_id not in rooms:
-                        rooms[room_id] = [{"ws": ws, "name": name}]
+                        rooms[room_id] = []
+                    rooms[room_id].append({"ws": ws, "name": name, "peerId": peer_id})
+                    continue
+
+                # ── Routed signaling (offer / answer / ice-candidate) ───────
+
+                if msg_type in ("offer", "answer", "ice-candidate"):
+                    to_id = msg.get("to")
+                    target_ws = _get_peer_by_id(to_id, room_id, rooms)
+                    if target_ws is None:
+                        continue
+
+                    payload = {"type": msg_type, "from": peer_id}
+                    if msg_type in ("offer", "answer"):
+                        payload["sdp"] = msg["sdp"]
                     else:
-                        peers = rooms[room_id]
-                        if len(peers) >= 2:
-                            await _send(ws, {"type": "room-full"})
-                            continue
-                        peers.append({"ws": ws, "name": name})
-                        await _send(peers[0]["ws"], {"type": "peer-joined", "name": name})
-                        await _send(ws, {"type": "peer-info", "name": peers[0]["name"]})
-                    continue
+                        payload["candidate"] = msg["candidate"]
 
-                peer = _get_other_peer(ws, room_id, rooms)
-                if peer is None:
-                    continue
-
-                if msg_type == "offer":
-                    await _send(peer, {"type": "offer", "sdp": msg["sdp"]})
-                elif msg_type == "answer":
-                    await _send(peer, {"type": "answer", "sdp": msg["sdp"]})
-                elif msg_type == "ice-candidate":
-                    await _send(peer, {"type": "ice-candidate", "candidate": msg["candidate"]})
+                    await _send(target_ws, payload)
 
         finally:
-            if room_id is not None:
-                peers = rooms.get(room_id)
-                if peers:
-                    my_entry = next((e for e in peers if e["ws"] is ws), None)
-                    remaining = [e for e in peers if e["ws"] is not ws]
-                    if not remaining:
-                        del rooms[room_id]
-                    else:
-                        rooms[room_id] = remaining
-                        left_name = my_entry["name"] if my_entry else "Anonymous"
-                        await _send(remaining[0]["ws"], {"type": "peer-left", "name": left_name})
+            if room_id is not None and peer_id is not None:
+                peers = rooms.get(room_id, [])
+                my_entry = next((e for e in peers if e["peerId"] == peer_id), None)
+                remaining = [e for e in peers if e["peerId"] != peer_id]
+
+                if not remaining:
+                    rooms.pop(room_id, None)
+                else:
+                    rooms[room_id] = remaining
+                    left_name = my_entry["name"] if my_entry else "Anonymous"
+                    for entry in remaining:
+                        await _send(entry["ws"], {
+                            "type": "peer-left",
+                            "peerId": peer_id,
+                            "name": left_name,
+                        })
 
     return rooms, handler
 
@@ -106,14 +140,11 @@ async def start_server(port: int):
     return server
 
 
-def _get_other_peer(ws, room_id, rooms):
-    if room_id is None:
+def _get_peer_by_id(peer_id, room_id, rooms):
+    if peer_id is None or room_id is None:
         return None
-    peers = rooms.get(room_id)
-    if not peers:
-        return None
-    for entry in peers:
-        if entry["ws"] is not ws:
+    for entry in rooms.get(room_id, []):
+        if entry["peerId"] == peer_id:
             return entry["ws"]
     return None
 
