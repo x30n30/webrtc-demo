@@ -30,6 +30,10 @@
       gap: 0.4rem;
     }
     .tile span { font-size: 0.75rem; opacity: 0.6; }
+    #remote-peers { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .peer-tile video { width: 480px; max-width: 100%; aspect-ratio: 16/9;
+      background: #222; border: 2px solid #f84; border-radius: 4px; }
+    .peer-tile span { font-size: 0.75rem; color: #f84; opacity: 0.85; }
     video {
       width: 480px;
       max-width: 100%;
@@ -225,9 +229,8 @@
       <video id="local-video" class="local-border" autoplay playsinline muted></video>
       <span style="color:#4af" id="local-name">You</span>
     </div>
-    <div class="tile">
-      <video id="remote-video" class="remote-border" autoplay playsinline muted></video>
-      <span style="color:#f84" id="remote-name">Remote</span>
+    <div id="remote-peers">
+      <!-- dynamic peer tiles inserted here -->
     </div>
   </div>
 
@@ -303,7 +306,7 @@
   <script src="webrtc.js"></script>
   <script>
     const localVideo    = document.getElementById('local-video');
-    const remoteVideo   = document.getElementById('remote-video');
+    const remotePeers   = document.getElementById('remote-peers');
     const connectBtn    = document.getElementById('connect-btn');
     const disconnectBtn = document.getElementById('disconnect-btn');
     const statusEl      = document.getElementById('status');
@@ -391,32 +394,48 @@
         room: currentRoom,
         name: currentName,
         localVideoEl: localVideo,
-        remoteVideoEl: remoteVideo,
         spatialAudio,
       });
 
-      client.onIceStateChange = (state) => {
+      // Create a video tile for each peer that joins and return its video element
+      client.onPeerJoined = (peerId, name) => {
+        const tile = document.createElement('div');
+        tile.className = 'tile peer-tile';
+        tile.dataset.peerId = peerId;
+        const vid = document.createElement('video');
+        vid.autoplay = true; vid.playsInline = true; vid.muted = true;
+        const label = document.createElement('span');
+        label.textContent = name || 'Remote';
+        tile.appendChild(vid);
+        tile.appendChild(label);
+        remotePeers.appendChild(tile);
+        return vid;
+      };
+
+      client.onPeerLeft = (peerId, name) => {
+        const tile = remotePeers.querySelector(`[data-peer-id="${peerId}"]`);
+        if (tile) tile.remove();
+        remoteFaceStatusEl.textContent = 'no face';
+      };
+
+      client.onIceStateChange = (peerId, state) => {
         const labels = { checking: 'ICE: checking…', connected: 'ICE: connected ✓',
                          completed: 'ICE: completed ✓', failed: 'ICE: failed ✗',
                          disconnected: 'ICE: disconnected', closed: '' };
         iceStatusEl.textContent = labels[state] || `ICE: ${state}`;
       };
 
-      // Remote head angle arrives via data channel → drives vizRemote
-      client.onDataMessage = ({ azimuth }) => {
+      // Remote head angle via data channel — last received wins for viz
+      client.onDataMessage = (peerId, { azimuth }) => {
         remoteAzimuth = azimuth;
         vizRemote.update(azimuth, currentDistance);
         remoteFaceStatusEl.textContent = `${Math.round(azimuth)}°`;
         roomViz.setRemoteAzimuth(azimuth);
       };
 
-      client.onPeerName = (n) => {
-        remoteNameEl.textContent = n || 'Remote';
-      };
-
       client.onStatusChange = (s) => {
         statusEl.textContent = s;
-        if (s === 'connected') {
+        if (s === 'connected' || s === 'waiting') {
           disconnectBtn.disabled = false;
         } else if (s === 'disconnected') {
           connectBtn.disabled = false;
@@ -425,7 +444,7 @@
           faceStatusEl.textContent = 'no face';
           remoteFaceStatusEl.textContent = 'no face';
           iceStatusEl.textContent = '';
-          remoteNameEl.textContent = 'Remote';
+          remotePeers.innerHTML = '';
           showLobby();
         }
       };
@@ -453,7 +472,7 @@
       cameraTracker.stop();
       spatialAudio.detach();
       fileAttached = false;
-      remoteNameEl.textContent = 'Remote';
+      remotePeers.innerHTML = '';
       showLobby();
     });
 
@@ -579,7 +598,6 @@
     const lobbyJoinBtn  = document.getElementById('lobby-join-btn');
     const lobbyClearBtn = document.getElementById('lobby-clear-btn');
     const lobbyMsgEl    = document.getElementById('lobby-msg');
-    const remoteNameEl  = document.getElementById('remote-name');
     const localNameEl   = document.getElementById('local-name');
 
     let peekTimer = null;
@@ -606,14 +624,11 @@
       if (count === 0) {
         lobbyStatusEl.className = 'open';
         lobbyStatusEl.textContent = "Room is empty — you'll be first";
-      } else if (count === 1) {
-        lobbyStatusEl.className = 'waiting';
-        lobbyStatusEl.textContent = `1/2 — ${names[0]} is waiting`;
       } else {
-        lobbyStatusEl.className = 'full';
-        lobbyStatusEl.textContent = 'Room is full (2/2)';
+        lobbyStatusEl.className = 'waiting';
+        lobbyStatusEl.textContent = `${count} peer${count > 1 ? 's' : ''} inside — ${names.join(', ')}`;
       }
-      lobbyJoinBtn.disabled = count >= 2;
+      lobbyJoinBtn.disabled = false;
     }
 
     function renderRoomsList(rooms) {
@@ -623,14 +638,11 @@
         return;
       }
       listEl.innerHTML = rooms.map(r => {
-        const countLabel = r.count === 2
-          ? `full — ${r.names.join(' & ')}`
-          : `${r.count}/2${r.names.length ? ' — ' + r.names.join(' & ') : ''}`;
-        const disabled = r.count >= 2 ? 'disabled' : '';
+        const countLabel = `${r.count} peer${r.count !== 1 ? 's' : ''}${r.names.length ? ' — ' + r.names.join(', ') : ''}`;
         return `<div class="room-row">
           <span class="rr-name">${r.name}</span>
           <span class="rr-count">${countLabel}</span>
-          <button ${disabled} onclick="lobbyQuickJoin('${r.name}')">Join</button>
+          <button onclick="lobbyQuickJoin('${r.name}')">Join</button>
         </div>`;
       }).join('');
     }
@@ -652,7 +664,6 @@
       lobbyEl.style.display = 'flex';
       lobbyMsgEl.textContent = '';
       localNameEl.textContent = 'You';
-      remoteNameEl.textContent = 'Remote';
       updateLobbyStatus();
       peekTimer = setInterval(updateLobbyStatus, 3000);
     }
@@ -675,7 +686,6 @@
       currentName = name;
       currentRoom = getLobbyRoom();
       localNameEl.textContent = name;
-      remoteNameEl.textContent = 'waiting…';
       document.getElementById('app-room-name').textContent = currentRoom;
       showApp();
       connectBtn.click();
