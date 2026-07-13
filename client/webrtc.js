@@ -31,6 +31,10 @@ class WebRTCClient {
     this.onDataMessage    = null;   // (peerId, data)
     // ICE state change for a specific peer connection.
     this.onIceStateChange = null;   // (peerId, iceState)
+    // Called with each incoming audio track so the caller can attach it to
+    // its own SpatialAudio instance. When set, overrides the built-in
+    // spatialAudio option for that peer.
+    this.onAudioTrack     = null;   // (peerId, MediaStreamTrack)
     // Overall room status: 'connecting' | 'waiting' | 'connected' | 'disconnected'
     this.onStatusChange   = null;   // (status)
     this.onError          = null;   // (Error)
@@ -148,7 +152,11 @@ class WebRTCClient {
       if (!peer) return;
 
       if (track.kind === 'audio') {
-        if (this._spatialAudio) {
+        if (this.onAudioTrack) {
+          track.enabled = true;
+          if (peer.remoteVideoEl) peer.remoteVideoEl.muted = true;
+          this.onAudioTrack(peerId, track);
+        } else if (this._spatialAudio) {
           track.enabled = true;
           if (peer.remoteVideoEl) peer.remoteVideoEl.muted = true;
           this._spatialAudio.attachTrack(track);

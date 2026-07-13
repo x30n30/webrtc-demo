@@ -190,6 +190,94 @@
     .room-row .rr-count { opacity: 0.55; font-size: 0.75rem; flex: 2; }
     .room-row button { padding: 0.25rem 0.8rem; font-size: 0.78rem; }
     #lobby-no-rooms { font-size: 0.78rem; opacity: 0.35; text-align: center; padding: 0.5rem 0; }
+
+    /* ── Three-Monitor Workspace ──────────────────────────────── */
+    #workspace {
+      width: 100%;
+      max-width: 860px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .ws-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      opacity: 0.35;
+      text-transform: uppercase;
+    }
+    .ws-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .ws-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 0.75rem;
+    }
+    .ws-slot-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .ws-screen-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+      text-transform: uppercase;
+    }
+    .ws-angle-display {
+      font-size: 0.85rem;
+      color: #4af;
+      font-weight: bold;
+      min-width: 3.5rem;
+      text-align: right;
+    }
+    .ws-angle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.68rem;
+      opacity: 0.45;
+    }
+    .ws-angle-row input[type=range] { flex: 1; }
+    .ws-angle-fixed {
+      font-size: 0.75rem;
+      opacity: 0.35;
+      font-style: italic;
+      padding: 0.3rem 0;
+      justify-content: center;
+    }
+    .ws-slot select {
+      width: 100%;
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #eee;
+      font-family: monospace;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.4rem;
+    }
+    .ws-slot select:focus { outline: 1px solid #4af; }
+    .ws-slot.slot-assigned { border-color: #4af44; }
+    .ws-calibrate {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    #ws-calibrate-status {
+      font-size: 0.8rem;
+      opacity: 0.55;
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -239,6 +327,60 @@
     <button id="disconnect-btn" disabled>Disconnect</button>
     <span id="status">idle</span>
     <span id="ice-status" style="font-size:0.75rem;opacity:0.5"></span>
+  </div>
+
+  <!-- ── Three-Monitor Workspace ──────────────────────────────────────── -->
+  <div id="workspace" style="display:none">
+    <div class="ws-title">Three-Monitor Workspace</div>
+    <div class="ws-slots">
+
+      <div class="ws-slot" id="slot-left">
+        <div class="ws-slot-header">
+          <span class="ws-screen-label">Left Screen</span>
+          <span class="ws-angle-display" id="ws-left-display">-45°</span>
+        </div>
+        <div class="ws-angle-row">
+          <span>-90°</span>
+          <input type="range" id="ws-left-angle" min="-90" max="-10" value="-45" step="5" />
+          <span>-10°</span>
+        </div>
+        <select id="ws-left-peer">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+
+      <div class="ws-slot" id="slot-center">
+        <div class="ws-slot-header">
+          <span class="ws-screen-label">Center Screen</span>
+          <span class="ws-angle-display">0°</span>
+        </div>
+        <div class="ws-angle-row ws-angle-fixed">0° · fixed</div>
+        <select id="ws-center-peer">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+
+      <div class="ws-slot" id="slot-right">
+        <div class="ws-slot-header">
+          <span class="ws-screen-label">Right Screen</span>
+          <span class="ws-angle-display" id="ws-right-display">+45°</span>
+        </div>
+        <div class="ws-angle-row">
+          <span>10°</span>
+          <input type="range" id="ws-right-angle" min="10" max="90" value="45" step="5" />
+          <span>90°</span>
+        </div>
+        <select id="ws-right-peer">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="ws-calibrate">
+      <button id="ws-calibrate-btn">Calibrate Distance</button>
+      <span id="ws-calibrate-status">not calibrated</span>
+      <button id="ws-calibrate-reset-btn" class="secondary">Reset</button>
+    </div>
   </div>
 
   <!-- ── File Player ─────────────────────────────────────────────────── -->
@@ -322,6 +464,102 @@
     const spatialAudio   = new SpatialAudio();
     const mouseTracker   = new HeadTracker();
     const cameraTracker  = new CameraHeadTracker();
+
+    // ── Three-Monitor Workspace state ──────────────────────────────────────
+    const peerAudio = new Map();    // peerId → SpatialAudio
+    const slotAngles = { left: -45, center: 0, right: 45 };
+    const slotAssign = { left: '', center: '', right: '' };
+
+    const wsEl            = document.getElementById('workspace');
+    const wsLeftAngleEl   = document.getElementById('ws-left-angle');
+    const wsRightAngleEl  = document.getElementById('ws-right-angle');
+    const wsLeftDisplay   = document.getElementById('ws-left-display');
+    const wsRightDisplay  = document.getElementById('ws-right-display');
+    const wsLeftPeer      = document.getElementById('ws-left-peer');
+    const wsCenterPeer    = document.getElementById('ws-center-peer');
+    const wsRightPeer     = document.getElementById('ws-right-peer');
+    const wsCalibrateBtn  = document.getElementById('ws-calibrate-btn');
+    const wsCalibrateStatus = document.getElementById('ws-calibrate-status');
+    const wsCalResetBtn   = document.getElementById('ws-calibrate-reset-btn');
+
+    const wsSelects = { left: wsLeftPeer, center: wsCenterPeer, right: wsRightPeer };
+
+    function applySlotAudio(slot) {
+      const peerId = slotAssign[slot];
+      if (!peerId) return;
+      const audio = peerAudio.get(peerId);
+      if (!audio) return;
+      audio.setSourcePosition(slotAngles[slot], currentDistance);
+    }
+
+    wsLeftAngleEl.addEventListener('input', () => {
+      slotAngles.left = parseInt(wsLeftAngleEl.value);
+      wsLeftDisplay.textContent = `${slotAngles.left}°`;
+      applySlotAudio('left');
+    });
+
+    wsRightAngleEl.addEventListener('input', () => {
+      slotAngles.right = parseInt(wsRightAngleEl.value);
+      wsRightDisplay.textContent = `+${slotAngles.right}°`;
+      applySlotAudio('right');
+    });
+
+    function onSlotChange(slot) {
+      slotAssign[slot] = wsSelects[slot].value;
+      applySlotAudio(slot);
+    }
+
+    wsLeftPeer.addEventListener('change',   () => onSlotChange('left'));
+    wsCenterPeer.addEventListener('change', () => onSlotChange('center'));
+    wsRightPeer.addEventListener('change',  () => onSlotChange('right'));
+
+    wsCalibrateBtn.addEventListener('click', () => {
+      if (cameraTracker.calibrate()) {
+        wsCalibrateStatus.textContent = 'calibrated ✓';
+        wsCalibrateStatus.style.color = '#4af';
+      } else {
+        wsCalibrateStatus.textContent = 'no face detected — try again';
+        wsCalibrateStatus.style.color = '#f84';
+      }
+    });
+
+    wsCalResetBtn.addEventListener('click', () => {
+      cameraTracker.resetCalibration();
+      wsCalibrateStatus.textContent = 'not calibrated';
+      wsCalibrateStatus.style.color = '';
+    });
+
+    function addPeerToDropdowns(peerId, name) {
+      for (const sel of Object.values(wsSelects)) {
+        const opt = document.createElement('option');
+        opt.value = peerId;
+        opt.textContent = name || peerId.slice(0, 8);
+        sel.appendChild(opt);
+      }
+    }
+
+    function removePeerFromDropdowns(peerId) {
+      for (const [slot, sel] of Object.entries(wsSelects)) {
+        const opt = sel.querySelector(`option[value="${peerId}"]`);
+        if (opt) opt.remove();
+        if (slotAssign[slot] === peerId) {
+          slotAssign[slot] = '';
+        }
+      }
+    }
+
+    function resetWorkspace() {
+      wsEl.style.display = 'none';
+      for (const sel of Object.values(wsSelects)) {
+        while (sel.options.length > 1) sel.remove(1);
+      }
+      for (const [slot] of Object.entries(slotAssign)) slotAssign[slot] = '';
+      for (const audio of peerAudio.values()) audio.detach();
+      peerAudio.clear();
+      wsCalibrateStatus.textContent = 'not calibrated';
+      wsCalibrateStatus.style.color = '';
+      cameraTracker.resetCalibration();
+    }
     const vizMouse       = new SpatialViz(document.getElementById('viz-mouse'));
     const vizCamera      = new SpatialViz(document.getElementById('viz-camera'));
     const vizRemote      = new SpatialViz(document.getElementById('viz-remote'));
@@ -358,12 +596,15 @@
     cameraTracker.onHeadAngle = (az) => {
       cameraAzimuth = az;
       vizCamera.update(az, currentDistance);
-      faceStatusEl.textContent = `${Math.round(az)}°`;
+      faceStatusEl.textContent = cameraTracker.isCalibrated
+        ? `${Math.round(az)}° (cal)` : `${Math.round(az)}°`;
       roomViz.setLocalAzimuth(az);
       // Send our angle to peer over data channel — before spatial audio so a
       // thrown audio error can never silently drop the data channel message.
       if (client) client.sendData({ azimuth: az });
       spatialAudio.setListenerOrientation(az);
+      // Update listener orientation for all per-peer workspace audio instances
+      for (const audio of peerAudio.values()) audio.setListenerOrientation(az);
     };
 
     // Distance slider affects all
@@ -409,6 +650,7 @@
         tile.appendChild(vid);
         tile.appendChild(label);
         remotePeers.appendChild(tile);
+        addPeerToDropdowns(peerId, name);
         return vid;
       };
 
@@ -416,6 +658,27 @@
         const tile = remotePeers.querySelector(`[data-peer-id="${peerId}"]`);
         if (tile) tile.remove();
         remoteFaceStatusEl.textContent = 'no face';
+        removePeerFromDropdowns(peerId);
+        const audio = peerAudio.get(peerId);
+        if (audio) { audio.detach(); peerAudio.delete(peerId); }
+      };
+
+      // Per-peer spatial audio for workspace: each peer's audio is routed to
+      // their assigned slot's angle via the peerAudio map.
+      client.onAudioTrack = (peerId, track) => {
+        const audio = new SpatialAudio();
+        audio.attachTrack(track);
+        audio.setListenerOrientation(cameraAzimuth);
+        peerAudio.set(peerId, audio);
+        // Apply slot angle if peer is already assigned
+        for (const slot of ['left', 'center', 'right']) {
+          if (slotAssign[slot] === peerId) {
+            audio.setSourcePosition(slotAngles[slot], currentDistance);
+            return;
+          }
+        }
+        // Default: center position until assigned to a slot
+        audio.setSourcePosition(0, currentDistance);
       };
 
       client.onIceStateChange = (peerId, state) => {
@@ -437,6 +700,7 @@
         statusEl.textContent = s;
         if (s === 'connected' || s === 'waiting') {
           disconnectBtn.disabled = false;
+          wsEl.style.display = '';
         } else if (s === 'disconnected') {
           connectBtn.disabled = false;
           disconnectBtn.disabled = true;
@@ -445,6 +709,7 @@
           remoteFaceStatusEl.textContent = 'no face';
           iceStatusEl.textContent = '';
           remotePeers.innerHTML = '';
+          resetWorkspace();
           showLobby();
         }
       };
@@ -473,6 +738,7 @@
       spatialAudio.detach();
       fileAttached = false;
       remotePeers.innerHTML = '';
+      resetWorkspace();
       showLobby();
     });
 

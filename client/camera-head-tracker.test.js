@@ -25,11 +25,13 @@ class MockFaceMesh {
 const noopInterval = () => 0;
 const noopClear = () => {};
 
-function makeLandmarks(noseX, leftX, rightX) {
+function makeLandmarks(noseX, leftX, rightX, eyeLeftX = 0.35, eyeRightX = 0.65) {
   const lm = Array.from({ length: 468 }, () => ({ x: 0.5, y: 0.5, z: 0 }));
-  lm[4]   = { x: noseX, y: 0.5, z: 0 };
-  lm[234] = { x: leftX, y: 0.5, z: 0 };
-  lm[454] = { x: rightX, y: 0.5, z: 0 };
+  lm[4]   = { x: noseX,     y: 0.5, z: 0 };
+  lm[234] = { x: leftX,     y: 0.5, z: 0 };
+  lm[454] = { x: rightX,    y: 0.5, z: 0 };
+  lm[33]  = { x: eyeLeftX,  y: 0.5, z: 0 };
+  lm[263] = { x: eyeRightX, y: 0.5, z: 0 };
   return lm;
 }
 
@@ -110,4 +112,71 @@ test('onHeadAngle not called when multiFaceLandmarks is empty', async () => {
   faceMeshInstances[0]._fireResults({});
 
   expect(angles).toHaveLength(0);
+});
+
+// ── YawEstimator / distance calibration ───────────────────────────────────
+
+// Test 6
+test('isCalibrated is false before any calibration', async () => {
+  const tracker = new CameraHeadTracker({ FaceMeshClass: MockFaceMesh, setIntervalFn: noopInterval, clearIntervalFn: noopClear });
+  await tracker.start(mockVideoEl);
+  expect(tracker.isCalibrated).toBe(false);
+});
+
+// Test 7
+test('calibrate() returns false when no face has been detected yet', async () => {
+  const tracker = new CameraHeadTracker({ FaceMeshClass: MockFaceMesh, setIntervalFn: noopInterval, clearIntervalFn: noopClear });
+  await tracker.start(mockVideoEl);
+  expect(tracker.calibrate()).toBe(false);
+  expect(tracker.isCalibrated).toBe(false);
+});
+
+// Test 8
+test('calibrate() returns true and sets isCalibrated after a face result', async () => {
+  const tracker = new CameraHeadTracker({ FaceMeshClass: MockFaceMesh, setIntervalFn: noopInterval, clearIntervalFn: noopClear });
+  await tracker.start(mockVideoEl);
+
+  faceMeshInstances[0]._fireResults({
+    multiFaceLandmarks: [makeLandmarks(0.5, 0.3, 0.7, 0.35, 0.65)],
+  });
+
+  expect(tracker.calibrate()).toBe(true);
+  expect(tracker.isCalibrated).toBe(true);
+});
+
+// Test 9
+test('resetCalibration() clears calibration', async () => {
+  const tracker = new CameraHeadTracker({ FaceMeshClass: MockFaceMesh, setIntervalFn: noopInterval, clearIntervalFn: noopClear });
+  await tracker.start(mockVideoEl);
+
+  faceMeshInstances[0]._fireResults({
+    multiFaceLandmarks: [makeLandmarks(0.5, 0.3, 0.7, 0.35, 0.65)],
+  });
+  tracker.calibrate();
+  tracker.resetCalibration();
+
+  expect(tracker.isCalibrated).toBe(false);
+});
+
+// Test 10
+test('calibrated at normal range then close-up yields compressed azimuth', async () => {
+  const tracker = new CameraHeadTracker({ FaceMeshClass: MockFaceMesh, setIntervalFn: noopInterval, clearIntervalFn: noopClear });
+  const angles = [];
+  tracker.onHeadAngle = (az) => angles.push(az);
+  await tracker.start(mockVideoEl);
+
+  // Calibrate at normal range: IOD = 0.30
+  faceMeshInstances[0]._fireResults({
+    multiFaceLandmarks: [makeLandmarks(0.5, 0.3, 0.7, 0.35, 0.65)],
+  });
+  tracker.calibrate();
+  angles.length = 0;
+
+  // Same head turn but close-up: IOD = 0.60  → scale = 0.30/0.60 = 0.5
+  // raw yaw = 45° → corrected = 22.5° → azimuth = 45°
+  faceMeshInstances[0]._fireResults({
+    multiFaceLandmarks: [makeLandmarks(0.7, 0.3, 0.7, 0.2, 0.8)],
+  });
+
+  expect(angles[0]).toBeCloseTo(45, 1);  // not the raw 90° azimuth
 });
