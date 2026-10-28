@@ -19,7 +19,9 @@ function landmarkToYaw(landmarks) {
 
   if (halfWidth < 0.001) return 0;
 
-  const normalized = (nose.x - centerX) / halfWidth;
+  // Negate to correct for mirrored webcam: MediaPipe sees the flipped image,
+  // so landmark x-coordinates are left/right reversed relative to the real world.
+  const normalized = -(nose.x - centerX) / halfWidth;
   const clamped    = Math.max(-1, Math.min(1, normalized));
   return clamped * 45;
 }

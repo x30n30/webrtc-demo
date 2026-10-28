@@ -2,6 +2,10 @@ const _landmarkToYaw = typeof require !== 'undefined'
   ? require('./landmark-to-yaw').landmarkToYaw
   : landmarkToYaw; // browser global
 
+const _YawEstimator = typeof require !== 'undefined'
+  ? require('./landmark-to-yaw').YawEstimator
+  : YawEstimator; // browser global
+
 function yawToAzimuth(yaw) {
   // yaw 0° (forward)  → azimuth   0° (sound ahead)
   // yaw +45° (right)  → azimuth  90° (sound to right)
@@ -23,6 +27,8 @@ class CameraHeadTracker {
     this._intervalId       = null;
     this._running          = false;
     this._processing       = false;
+    this._lastLandmarks    = null;
+    this._estimator        = new _YawEstimator();
     this.onHeadAngle       = null;
   }
 
@@ -45,7 +51,8 @@ class CameraHeadTracker {
 
     this._faceMesh.onResults((results) => {
       if (!results.multiFaceLandmarks || !results.multiFaceLandmarks[0]) return;
-      const yaw     = _landmarkToYaw(results.multiFaceLandmarks[0]);
+      this._lastLandmarks = results.multiFaceLandmarks[0];
+      const yaw     = this._estimator.estimate(this._lastLandmarks);
       const azimuth = yawToAzimuth(yaw);
       if (this.onHeadAngle) this.onHeadAngle(azimuth);
     });
@@ -53,6 +60,23 @@ class CameraHeadTracker {
     // Wait for WASM + model files to fully load before sending frames
     await this._faceMesh.initialize();
     this._intervalId = this._setInterval(() => this._tick(), 33);
+  }
+
+  /** Snapshot the current IOD as the reference distance. Returns true on success. */
+  calibrate() {
+    if (!this._lastLandmarks) return false;
+    this._estimator.calibrate(this._lastLandmarks);
+    return true;
+  }
+
+  /** Clear distance calibration — tracker returns uncorrected yaw again. */
+  resetCalibration() {
+    this._estimator.reset();
+  }
+
+  /** True after a successful calibrate() call, until resetCalibration(). */
+  get isCalibrated() {
+    return this._estimator.baselineIod !== null;
   }
 
   stop() {

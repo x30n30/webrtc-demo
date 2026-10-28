@@ -30,6 +30,10 @@
       gap: 0.4rem;
     }
     .tile span { font-size: 0.75rem; opacity: 0.6; }
+    #remote-peers { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
+    .peer-tile video { width: 480px; max-width: 100%; aspect-ratio: 16/9;
+      background: #222; border: 2px solid #f84; border-radius: 4px; }
+    .peer-tile span { font-size: 0.75rem; color: #f84; opacity: 0.85; }
     video {
       width: 480px;
       max-width: 100%;
@@ -51,6 +55,7 @@
     }
     button:disabled { background: #444; cursor: default; }
     #status { font-size: 0.85rem; opacity: 0.7; }
+    #status.error { color: #f84; opacity: 1; font-weight: bold; }
     .bottom {
       display: flex;
       gap: 2rem;
@@ -186,6 +191,94 @@
     .room-row .rr-count { opacity: 0.55; font-size: 0.75rem; flex: 2; }
     .room-row button { padding: 0.25rem 0.8rem; font-size: 0.78rem; }
     #lobby-no-rooms { font-size: 0.78rem; opacity: 0.35; text-align: center; padding: 0.5rem 0; }
+
+    /* ── Three-Monitor Workspace ──────────────────────────────── */
+    #workspace {
+      width: 100%;
+      max-width: 860px;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .ws-title {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      opacity: 0.35;
+      text-transform: uppercase;
+    }
+    .ws-slots {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .ws-slot {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 0.75rem;
+    }
+    .ws-slot-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    .ws-screen-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      opacity: 0.5;
+      text-transform: uppercase;
+    }
+    .ws-angle-display {
+      font-size: 0.85rem;
+      color: #4af;
+      font-weight: bold;
+      min-width: 3.5rem;
+      text-align: right;
+    }
+    .ws-angle-row {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.68rem;
+      opacity: 0.45;
+    }
+    .ws-angle-row input[type=range] { flex: 1; }
+    .ws-angle-fixed {
+      font-size: 0.75rem;
+      opacity: 0.35;
+      font-style: italic;
+      padding: 0.3rem 0;
+      justify-content: center;
+    }
+    .ws-slot select {
+      width: 100%;
+      background: #222;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: #eee;
+      font-family: monospace;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.4rem;
+    }
+    .ws-slot select:focus { outline: 1px solid #4af; }
+    .ws-slot.slot-assigned { border-color: #4af44; }
+    .ws-calibrate {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    #ws-calibrate-status {
+      font-size: 0.8rem;
+      opacity: 0.55;
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -225,9 +318,8 @@
       <video id="local-video" class="local-border" autoplay playsinline muted></video>
       <span style="color:#4af" id="local-name">You</span>
     </div>
-    <div class="tile">
-      <video id="remote-video" class="remote-border" autoplay playsinline muted></video>
-      <span style="color:#f84" id="remote-name">Remote</span>
+    <div id="remote-peers">
+      <!-- dynamic peer tiles inserted here -->
     </div>
   </div>
 
@@ -236,6 +328,60 @@
     <button id="disconnect-btn" disabled>Disconnect</button>
     <span id="status">idle</span>
     <span id="ice-status" style="font-size:0.75rem;opacity:0.5"></span>
+  </div>
+
+  <!-- ── Three-Monitor Workspace ──────────────────────────────────────── -->
+  <div id="workspace" style="display:none">
+    <div class="ws-title">Three-Monitor Workspace</div>
+    <div class="ws-slots">
+
+      <div class="ws-slot" id="slot-left">
+        <div class="ws-slot-header">
+          <span class="ws-screen-label">Left Screen</span>
+          <span class="ws-angle-display" id="ws-left-display">-45°</span>
+        </div>
+        <div class="ws-angle-row">
+          <span>-90°</span>
+          <input type="range" id="ws-left-angle" min="-90" max="-10" value="-45" step="5" />
+          <span>-10°</span>
+        </div>
+        <select id="ws-left-peer">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+
+      <div class="ws-slot" id="slot-center">
+        <div class="ws-slot-header">
+          <span class="ws-screen-label">Center Screen</span>
+          <span class="ws-angle-display">0°</span>
+        </div>
+        <div class="ws-angle-row ws-angle-fixed">0° · fixed</div>
+        <select id="ws-center-peer">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+
+      <div class="ws-slot" id="slot-right">
+        <div class="ws-slot-header">
+          <span class="ws-screen-label">Right Screen</span>
+          <span class="ws-angle-display" id="ws-right-display">+45°</span>
+        </div>
+        <div class="ws-angle-row">
+          <span>10°</span>
+          <input type="range" id="ws-right-angle" min="10" max="90" value="45" step="5" />
+          <span>90°</span>
+        </div>
+        <select id="ws-right-peer">
+          <option value="">— Unassigned —</option>
+        </select>
+      </div>
+
+    </div>
+    <div class="ws-calibrate">
+      <button id="ws-calibrate-btn">Calibrate Distance</button>
+      <span id="ws-calibrate-status">not calibrated</span>
+      <button id="ws-calibrate-reset-btn" class="secondary">Reset</button>
+    </div>
   </div>
 
   <!-- ── File Player ─────────────────────────────────────────────────── -->
@@ -303,7 +449,7 @@
   <script src="webrtc.js"></script>
   <script>
     const localVideo    = document.getElementById('local-video');
-    const remoteVideo   = document.getElementById('remote-video');
+    const remotePeers   = document.getElementById('remote-peers');
     const connectBtn    = document.getElementById('connect-btn');
     const disconnectBtn = document.getElementById('disconnect-btn');
     const statusEl      = document.getElementById('status');
@@ -312,13 +458,110 @@
     const distanceVal   = document.getElementById('distance-val');
 
     const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsPort  = location.port || (location.protocol === 'https:' ? '443' : '80');
-    const signalingUrl = `${wsProto}://${location.hostname || 'localhost'}:${wsPort}`;
+    const signalingUrl = location.port
+      ? `${wsProto}://${location.hostname}:${location.port}`
+      : `${wsProto}://${location.hostname}`;
     const room = location.hash.slice(1) || 'default';
 
     const spatialAudio   = new SpatialAudio();
     const mouseTracker   = new HeadTracker();
     const cameraTracker  = new CameraHeadTracker();
+
+    // ── Three-Monitor Workspace state ──────────────────────────────────────
+    const peerAudio = new Map();    // peerId → SpatialAudio
+    const slotAngles = { left: -45, center: 0, right: 45 };
+    const slotAssign = { left: '', center: '', right: '' };
+
+    const wsEl            = document.getElementById('workspace');
+    const wsLeftAngleEl   = document.getElementById('ws-left-angle');
+    const wsRightAngleEl  = document.getElementById('ws-right-angle');
+    const wsLeftDisplay   = document.getElementById('ws-left-display');
+    const wsRightDisplay  = document.getElementById('ws-right-display');
+    const wsLeftPeer      = document.getElementById('ws-left-peer');
+    const wsCenterPeer    = document.getElementById('ws-center-peer');
+    const wsRightPeer     = document.getElementById('ws-right-peer');
+    const wsCalibrateBtn  = document.getElementById('ws-calibrate-btn');
+    const wsCalibrateStatus = document.getElementById('ws-calibrate-status');
+    const wsCalResetBtn   = document.getElementById('ws-calibrate-reset-btn');
+
+    const wsSelects = { left: wsLeftPeer, center: wsCenterPeer, right: wsRightPeer };
+
+    function applySlotAudio(slot) {
+      const peerId = slotAssign[slot];
+      if (!peerId) return;
+      const audio = peerAudio.get(peerId);
+      if (!audio) return;
+      audio.setSourcePosition(slotAngles[slot], currentDistance);
+    }
+
+    wsLeftAngleEl.addEventListener('input', () => {
+      slotAngles.left = parseInt(wsLeftAngleEl.value);
+      wsLeftDisplay.textContent = `${slotAngles.left}°`;
+      applySlotAudio('left');
+    });
+
+    wsRightAngleEl.addEventListener('input', () => {
+      slotAngles.right = parseInt(wsRightAngleEl.value);
+      wsRightDisplay.textContent = `+${slotAngles.right}°`;
+      applySlotAudio('right');
+    });
+
+    function onSlotChange(slot) {
+      slotAssign[slot] = wsSelects[slot].value;
+      applySlotAudio(slot);
+    }
+
+    wsLeftPeer.addEventListener('change',   () => onSlotChange('left'));
+    wsCenterPeer.addEventListener('change', () => onSlotChange('center'));
+    wsRightPeer.addEventListener('change',  () => onSlotChange('right'));
+
+    wsCalibrateBtn.addEventListener('click', () => {
+      if (cameraTracker.calibrate()) {
+        wsCalibrateStatus.textContent = 'calibrated ✓';
+        wsCalibrateStatus.style.color = '#4af';
+      } else {
+        wsCalibrateStatus.textContent = 'no face detected — try again';
+        wsCalibrateStatus.style.color = '#f84';
+      }
+    });
+
+    wsCalResetBtn.addEventListener('click', () => {
+      cameraTracker.resetCalibration();
+      wsCalibrateStatus.textContent = 'not calibrated';
+      wsCalibrateStatus.style.color = '';
+    });
+
+    function addPeerToDropdowns(peerId, name) {
+      for (const sel of Object.values(wsSelects)) {
+        const opt = document.createElement('option');
+        opt.value = peerId;
+        opt.textContent = name || peerId.slice(0, 8);
+        sel.appendChild(opt);
+      }
+    }
+
+    function removePeerFromDropdowns(peerId) {
+      for (const [slot, sel] of Object.entries(wsSelects)) {
+        const opt = sel.querySelector(`option[value="${peerId}"]`);
+        if (opt) opt.remove();
+        if (slotAssign[slot] === peerId) {
+          slotAssign[slot] = '';
+        }
+      }
+    }
+
+    function resetWorkspace() {
+      wsEl.style.display = 'none';
+      for (const sel of Object.values(wsSelects)) {
+        while (sel.options.length > 1) sel.remove(1);
+      }
+      for (const [slot] of Object.entries(slotAssign)) slotAssign[slot] = '';
+      for (const audio of peerAudio.values()) audio.detach();
+      peerAudio.clear();
+      wsCalibrateStatus.textContent = 'not calibrated';
+      wsCalibrateStatus.style.color = '';
+      cameraTracker.resetCalibration();
+    }
     const vizMouse       = new SpatialViz(document.getElementById('viz-mouse'));
     const vizCamera      = new SpatialViz(document.getElementById('viz-camera'));
     const vizRemote      = new SpatialViz(document.getElementById('viz-remote'));
@@ -355,12 +598,15 @@
     cameraTracker.onHeadAngle = (az) => {
       cameraAzimuth = az;
       vizCamera.update(az, currentDistance);
-      faceStatusEl.textContent = `${Math.round(az)}°`;
+      faceStatusEl.textContent = cameraTracker.isCalibrated
+        ? `${Math.round(az)}° (cal)` : `${Math.round(az)}°`;
       roomViz.setLocalAzimuth(az);
       // Send our angle to peer over data channel — before spatial audio so a
       // thrown audio error can never silently drop the data channel message.
       if (client) client.sendData({ azimuth: az });
       spatialAudio.setListenerOrientation(az);
+      // Update listener orientation for all per-peer workspace audio instances
+      for (const audio of peerAudio.values()) audio.setListenerOrientation(az);
     };
 
     // Distance slider affects all
@@ -382,42 +628,87 @@
     let currentName = '';
     let currentRoom = location.hash.slice(1) || 'default';
 
-    connectBtn.addEventListener('click', async () => {
+    function setStatus(text, isError = false) {
+      statusEl.textContent = text;
+      statusEl.className = isError ? 'error' : '';
+    }
+
+    async function startConnection() {
+      fileAttached = false;
       connectBtn.disabled = true;
-      statusEl.textContent = 'connecting…';
+      setStatus('allow camera access…');
 
       client = new WebRTCClient({
         signalingUrl,
         room: currentRoom,
         name: currentName,
         localVideoEl: localVideo,
-        remoteVideoEl: remoteVideo,
         spatialAudio,
       });
 
-      client.onIceStateChange = (state) => {
+      // Create a video tile for each peer that joins and return its video element
+      client.onPeerJoined = (peerId, name) => {
+        const tile = document.createElement('div');
+        tile.className = 'tile peer-tile';
+        tile.dataset.peerId = peerId;
+        const vid = document.createElement('video');
+        vid.autoplay = true; vid.playsInline = true; vid.muted = true;
+        const label = document.createElement('span');
+        label.textContent = name || 'Remote';
+        tile.appendChild(vid);
+        tile.appendChild(label);
+        remotePeers.appendChild(tile);
+        addPeerToDropdowns(peerId, name);
+        return vid;
+      };
+
+      client.onPeerLeft = (peerId, name) => {
+        const tile = remotePeers.querySelector(`[data-peer-id="${peerId}"]`);
+        if (tile) tile.remove();
+        remoteFaceStatusEl.textContent = 'no face';
+        removePeerFromDropdowns(peerId);
+        const audio = peerAudio.get(peerId);
+        if (audio) { audio.detach(); peerAudio.delete(peerId); }
+      };
+
+      // Per-peer spatial audio for workspace: each peer's audio is routed to
+      // their assigned slot's angle via the peerAudio map.
+      client.onAudioTrack = (peerId, track) => {
+        const audio = new SpatialAudio();
+        audio.attachTrack(track);
+        audio.setListenerOrientation(cameraAzimuth);
+        peerAudio.set(peerId, audio);
+        // Apply slot angle if peer is already assigned
+        for (const slot of ['left', 'center', 'right']) {
+          if (slotAssign[slot] === peerId) {
+            audio.setSourcePosition(slotAngles[slot], currentDistance);
+            return;
+          }
+        }
+        // Default: center position until assigned to a slot
+        audio.setSourcePosition(0, currentDistance);
+      };
+
+      client.onIceStateChange = (peerId, state) => {
         const labels = { checking: 'ICE: checking…', connected: 'ICE: connected ✓',
                          completed: 'ICE: completed ✓', failed: 'ICE: failed ✗',
                          disconnected: 'ICE: disconnected', closed: '' };
         iceStatusEl.textContent = labels[state] || `ICE: ${state}`;
       };
 
-      // Remote head angle arrives via data channel → drives vizRemote
-      client.onDataMessage = ({ azimuth }) => {
+      // Remote head angle via data channel — last received wins for viz
+      client.onDataMessage = (peerId, { azimuth }) => {
         remoteAzimuth = azimuth;
         vizRemote.update(azimuth, currentDistance);
         remoteFaceStatusEl.textContent = `${Math.round(azimuth)}°`;
         roomViz.setRemoteAzimuth(azimuth);
       };
 
-      client.onPeerName = (n) => {
-        remoteNameEl.textContent = n || 'Remote';
-      };
-
       client.onStatusChange = (s) => {
-        statusEl.textContent = s;
-        if (s === 'connected') {
+        setStatus(s);
+        if (s === 'connected' || s === 'waiting') {
           disconnectBtn.disabled = false;
+          wsEl.style.display = '';
         } else if (s === 'disconnected') {
           connectBtn.disabled = false;
           disconnectBtn.disabled = true;
@@ -425,35 +716,40 @@
           faceStatusEl.textContent = 'no face';
           remoteFaceStatusEl.textContent = 'no face';
           iceStatusEl.textContent = '';
-          remoteNameEl.textContent = 'Remote';
+          remotePeers.innerHTML = '';
+          resetWorkspace();
           showLobby();
         }
       };
 
       client.onError = (err) => {
-        statusEl.textContent = `error: ${err.message}`;
+        setStatus(`error: ${err.message}`, true);
         connectBtn.disabled = false;
         disconnectBtn.disabled = true;
       };
 
       try {
         await client.start();
+        setStatus('connecting…');
         // Start camera tracking — awaited so model loads before loop begins
         faceStatusEl.textContent = 'loading…';
         await cameraTracker.start(localVideo);
         faceStatusEl.textContent = 'no face';
       } catch (err) {
-        statusEl.textContent = `error: ${err.message}`;
+        setStatus(`error: ${err.message}`, true);
         connectBtn.disabled = false;
       }
-    });
+    }
+
+    connectBtn.addEventListener('click', startConnection);
 
     disconnectBtn.addEventListener('click', () => {
       if (client) { client.disconnect(); client = null; }
       cameraTracker.stop();
       spatialAudio.detach();
       fileAttached = false;
-      remoteNameEl.textContent = 'Remote';
+      remotePeers.innerHTML = '';
+      resetWorkspace();
       showLobby();
     });
 
@@ -567,8 +863,6 @@
       spatialAudio.setListenerOrientation(az);
     };
 
-    // Reset fileAttached when WebRTC takes over the audio graph
-    connectBtn.addEventListener('click', () => { fileAttached = false; }, { capture: true });
 
     // ── Lobby ──────────────────────────────────────────────────────────────
     const lobbyEl       = document.getElementById('lobby');
@@ -579,7 +873,6 @@
     const lobbyJoinBtn  = document.getElementById('lobby-join-btn');
     const lobbyClearBtn = document.getElementById('lobby-clear-btn');
     const lobbyMsgEl    = document.getElementById('lobby-msg');
-    const remoteNameEl  = document.getElementById('remote-name');
     const localNameEl   = document.getElementById('local-name');
 
     let peekTimer = null;
@@ -606,14 +899,11 @@
       if (count === 0) {
         lobbyStatusEl.className = 'open';
         lobbyStatusEl.textContent = "Room is empty — you'll be first";
-      } else if (count === 1) {
-        lobbyStatusEl.className = 'waiting';
-        lobbyStatusEl.textContent = `1/2 — ${names[0]} is waiting`;
       } else {
-        lobbyStatusEl.className = 'full';
-        lobbyStatusEl.textContent = 'Room is full (2/2)';
+        lobbyStatusEl.className = 'waiting';
+        lobbyStatusEl.textContent = `${count} peer${count > 1 ? 's' : ''} inside — ${names.join(', ')}`;
       }
-      lobbyJoinBtn.disabled = count >= 2;
+      lobbyJoinBtn.disabled = false;
     }
 
     function renderRoomsList(rooms) {
@@ -623,14 +913,11 @@
         return;
       }
       listEl.innerHTML = rooms.map(r => {
-        const countLabel = r.count === 2
-          ? `full — ${r.names.join(' & ')}`
-          : `${r.count}/2${r.names.length ? ' — ' + r.names.join(' & ') : ''}`;
-        const disabled = r.count >= 2 ? 'disabled' : '';
+        const countLabel = `${r.count} peer${r.count !== 1 ? 's' : ''}${r.names.length ? ' — ' + r.names.join(', ') : ''}`;
         return `<div class="room-row">
           <span class="rr-name">${r.name}</span>
           <span class="rr-count">${countLabel}</span>
-          <button ${disabled} onclick="lobbyQuickJoin('${r.name}')">Join</button>
+          <button onclick="lobbyQuickJoin('${r.name}')">Join</button>
         </div>`;
       }).join('');
     }
@@ -652,7 +939,6 @@
       lobbyEl.style.display = 'flex';
       lobbyMsgEl.textContent = '';
       localNameEl.textContent = 'You';
-      remoteNameEl.textContent = 'Remote';
       updateLobbyStatus();
       peekTimer = setInterval(updateLobbyStatus, 3000);
     }
@@ -669,16 +955,15 @@
       updateLobbyStatus();
     });
 
-    lobbyJoinBtn.addEventListener('click', () => {
+    lobbyJoinBtn.addEventListener('click', async () => {
       const name = lobbyNameEl.value.trim();
       if (!name) { lobbyMsgEl.textContent = 'Please enter your name.'; return; }
       currentName = name;
       currentRoom = getLobbyRoom();
       localNameEl.textContent = name;
-      remoteNameEl.textContent = 'waiting…';
       document.getElementById('app-room-name').textContent = currentRoom;
       showApp();
-      connectBtn.click();
+      await startConnection();
     });
 
     lobbyClearBtn.addEventListener('click', () => {
