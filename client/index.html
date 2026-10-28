@@ -30,10 +30,6 @@
       gap: 0.4rem;
     }
     .tile span { font-size: 0.75rem; opacity: 0.6; }
-    #remote-peers { display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center; }
-    .peer-tile video { width: 480px; max-width: 100%; aspect-ratio: 16/9;
-      background: #222; border: 2px solid #f84; border-radius: 4px; }
-    .peer-tile span { font-size: 0.75rem; color: #f84; opacity: 0.85; }
     video {
       width: 480px;
       max-width: 100%;
@@ -55,7 +51,6 @@
     }
     button:disabled { background: #444; cursor: default; }
     #status { font-size: 0.85rem; opacity: 0.7; }
-    #status.error { color: #f84; opacity: 1; font-weight: bold; }
     .bottom {
       display: flex;
       gap: 2rem;
@@ -91,235 +86,19 @@
       opacity: 0.4;
       text-align: center;
     }
-    .file-player {
-      border: 1px solid #444;
-      border-radius: 6px;
-      padding: 1rem 1.5rem;
-      width: 100%;
-      max-width: 720px;
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-    .file-player h2 {
-      font-size: 0.75rem;
-      letter-spacing: 0.12em;
-      opacity: 0.45;
-      text-transform: uppercase;
-    }
-    #file-video {
-      display: none;
-      width: 100%;
-      aspect-ratio: 16/9;
-      background: #1a1a1a;
-      border: 1px solid #555;
-      border-radius: 4px;
-    }
-    #file-video.loaded { display: block; }
-    .file-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-    #file-status { font-size: 0.8rem; opacity: 0.5; margin-left: 0.5rem; }
-    button.toggled { background: #a62; }
-
-    /* ── Lobby ────────────────────────────────────────────────── */
-    #lobby {
-      position: fixed; inset: 0;
-      background: #111;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 100;
-    }
-    .lobby-card {
-      background: #1a1a1a;
-      border: 1px solid #444;
-      border-radius: 8px;
-      padding: 2rem 2.5rem;
-      width: 380px;
-      max-width: 95vw;
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .lobby-card h1 { font-size: 1rem; letter-spacing: 0.12em; text-align: center; }
-    .lobby-field {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-    }
-    .lobby-field label { font-size: 0.75rem; opacity: 0.5; }
-    .lobby-field input {
-      background: #222;
-      border: 1px solid #555;
-      border-radius: 4px;
-      color: #eee;
-      font-family: monospace;
-      font-size: 0.9rem;
-      padding: 0.4rem 0.6rem;
-    }
-    .lobby-field input:focus { outline: 1px solid #4af; border-color: #4af; }
-    #lobby-room-status {
-      font-size: 0.8rem;
-      text-align: center;
-      min-height: 1.4em;
-      opacity: 0.6;
-    }
-    #lobby-room-status.full { color: #f84; opacity: 1; }
-    #lobby-room-status.open { color: #4af; opacity: 1; }
-    #lobby-room-status.waiting { color: #fa4; opacity: 1; }
-    .lobby-buttons { display: flex; gap: 0.6rem; }
-    .lobby-buttons button { flex: 1; }
-    button.secondary { background: #444; }
-    button.secondary:hover { background: #555; }
-    #lobby-msg { font-size: 0.78rem; color: #f84; text-align: center; min-height: 1.2em; }
-    .lobby-rooms-header {
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      opacity: 0.35;
-      text-transform: uppercase;
-      border-top: 1px solid #333;
-      padding-top: 0.8rem;
-    }
-    .room-row {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.35rem 0;
-      border-bottom: 1px solid #2a2a2a;
-      font-size: 0.82rem;
-    }
-    .room-row .rr-name { flex: 1; font-weight: bold; }
-    .room-row .rr-count { opacity: 0.55; font-size: 0.75rem; flex: 2; }
-    .room-row button { padding: 0.25rem 0.8rem; font-size: 0.78rem; }
-    #lobby-no-rooms { font-size: 0.78rem; opacity: 0.35; text-align: center; padding: 0.5rem 0; }
-
-    /* ── Three-Monitor Workspace ──────────────────────────────── */
-    #workspace {
-      width: 100%;
-      max-width: 860px;
-      border: 1px solid #333;
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-    }
-    .ws-title {
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      opacity: 0.35;
-      text-transform: uppercase;
-    }
-    .ws-slots {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 0.75rem;
-    }
-    .ws-slot {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      background: #1a1a1a;
-      border: 1px solid #2a2a2a;
-      border-radius: 6px;
-      padding: 0.75rem;
-    }
-    .ws-slot-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-    }
-    .ws-screen-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      opacity: 0.5;
-      text-transform: uppercase;
-    }
-    .ws-angle-display {
-      font-size: 0.85rem;
-      color: #4af;
-      font-weight: bold;
-      min-width: 3.5rem;
-      text-align: right;
-    }
-    .ws-angle-row {
-      display: flex;
-      align-items: center;
-      gap: 0.3rem;
-      font-size: 0.68rem;
-      opacity: 0.45;
-    }
-    .ws-angle-row input[type=range] { flex: 1; }
-    .ws-angle-fixed {
-      font-size: 0.75rem;
-      opacity: 0.35;
-      font-style: italic;
-      padding: 0.3rem 0;
-      justify-content: center;
-    }
-    .ws-slot select {
-      width: 100%;
-      background: #222;
-      border: 1px solid #555;
-      border-radius: 4px;
-      color: #eee;
-      font-family: monospace;
-      font-size: 0.8rem;
-      padding: 0.3rem 0.4rem;
-    }
-    .ws-slot select:focus { outline: 1px solid #4af; }
-    .ws-slot.slot-assigned { border-color: #4af44; }
-    .ws-calibrate {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-    }
-    #ws-calibrate-status {
-      font-size: 0.8rem;
-      opacity: 0.55;
-      flex: 1;
-    }
   </style>
 </head>
 <body>
-
-  <!-- ── Lobby ──────────────────────────────────────────────────────────── -->
-  <div id="lobby">
-    <div class="lobby-card">
-      <h1>SPATIAL AUDIO CONFERENCE</h1>
-      <div class="lobby-field">
-        <label>Your name</label>
-        <input id="lobby-name" type="text" placeholder="Enter your name" autocomplete="off" />
-      </div>
-      <div class="lobby-field">
-        <label>Room</label>
-        <input id="lobby-room" type="text" value="default" autocomplete="off" />
-      </div>
-      <div id="lobby-room-status">checking…</div>
-      <div class="lobby-buttons">
-        <button id="lobby-join-btn">Join Room</button>
-        <button id="lobby-clear-btn" class="secondary">Clear Room</button>
-      </div>
-      <div id="lobby-msg"></div>
-      <div class="lobby-rooms-header">Active Rooms</div>
-      <div id="lobby-rooms-list"><div id="lobby-no-rooms">no active rooms</div></div>
-    </div>
-  </div>
-
-  <!-- ── App ────────────────────────────────────────────────────────────── -->
-  <div id="app" style="display:none;width:100%;flex-direction:column;align-items:center;gap:1.5rem">
-  <div style="text-align:center">
-    <h1>WebRTC — Spatial Audio</h1>
-    <div style="font-size:0.75rem;opacity:0.45;margin-top:0.3rem;letter-spacing:0.08em">Room: <span id="app-room-name">default</span></div>
-  </div>
+  <h1>WebRTC — Spatial Audio</h1>
 
   <div class="videos">
     <div class="tile">
       <video id="local-video" class="local-border" autoplay playsinline muted></video>
-      <span style="color:#4af" id="local-name">You</span>
+      <span style="color:#4af">You</span>
     </div>
-    <div id="remote-peers">
-      <!-- dynamic peer tiles inserted here -->
+    <div class="tile">
+      <video id="remote-video" class="remote-border" autoplay playsinline muted></video>
+      <span style="color:#f84">Remote</span>
     </div>
   </div>
 
@@ -330,76 +109,6 @@
     <span id="ice-status" style="font-size:0.75rem;opacity:0.5"></span>
   </div>
 
-  <!-- ── Three-Monitor Workspace ──────────────────────────────────────── -->
-  <div id="workspace" style="display:none">
-    <div class="ws-title">Three-Monitor Workspace</div>
-    <div class="ws-slots">
-
-      <div class="ws-slot" id="slot-left">
-        <div class="ws-slot-header">
-          <span class="ws-screen-label">Left Screen</span>
-          <span class="ws-angle-display" id="ws-left-display">-45°</span>
-        </div>
-        <div class="ws-angle-row">
-          <span>-90°</span>
-          <input type="range" id="ws-left-angle" min="-90" max="-10" value="-45" step="5" />
-          <span>-10°</span>
-        </div>
-        <select id="ws-left-peer">
-          <option value="">— Unassigned —</option>
-        </select>
-      </div>
-
-      <div class="ws-slot" id="slot-center">
-        <div class="ws-slot-header">
-          <span class="ws-screen-label">Center Screen</span>
-          <span class="ws-angle-display">0°</span>
-        </div>
-        <div class="ws-angle-row ws-angle-fixed">0° · fixed</div>
-        <select id="ws-center-peer">
-          <option value="">— Unassigned —</option>
-        </select>
-      </div>
-
-      <div class="ws-slot" id="slot-right">
-        <div class="ws-slot-header">
-          <span class="ws-screen-label">Right Screen</span>
-          <span class="ws-angle-display" id="ws-right-display">+45°</span>
-        </div>
-        <div class="ws-angle-row">
-          <span>10°</span>
-          <input type="range" id="ws-right-angle" min="10" max="90" value="45" step="5" />
-          <span>90°</span>
-        </div>
-        <select id="ws-right-peer">
-          <option value="">— Unassigned —</option>
-        </select>
-      </div>
-
-    </div>
-    <div class="ws-calibrate">
-      <button id="ws-calibrate-btn">Calibrate Distance</button>
-      <span id="ws-calibrate-status">not calibrated</span>
-      <button id="ws-calibrate-reset-btn" class="secondary">Reset</button>
-    </div>
-  </div>
-
-  <!-- ── File Player ─────────────────────────────────────────────────── -->
-  <div class="file-player">
-    <h2>File Player — emulate remote participant</h2>
-    <input type="file" id="file-input" accept="video/*" style="display:none" />
-    <video id="file-video" controls></video>
-    <div class="file-controls">
-      <button id="file-choose-btn">Choose file</button>
-      <button id="file-play-btn" disabled>Play</button>
-      <button id="file-pause-btn" disabled>Pause</button>
-      <button id="file-stop-btn" disabled>Stop</button>
-      <button id="file-loop-btn" disabled>Loop: off</button>
-      <button id="file-track-btn" disabled>Head track: off</button>
-      <span id="file-status">no file</span>
-    </div>
-  </div>
-
   <div class="bottom">
     <div class="distance-ctrl">
       <label>
@@ -407,6 +116,13 @@
         <span id="distance-val">1.0 m</span>
       </label>
       <input type="range" id="distance" min="1" max="10" value="1" step="0.1" />
+    </div>
+    <div class="distance-ctrl">
+      <label>
+        <span>Reverb</span>
+        <span id="reverb-val">25%</span>
+      </label>
+      <input type="range" id="reverb" min="0" max="1" value="0.25" step="0.01" />
     </div>
     <div class="tile">
       <canvas id="viz-mouse" width="200" height="200"></canvas>
@@ -437,8 +153,6 @@
   </div>
 
   <!-- MediaPipe FaceMesh (pinned version) -->
-  </div><!-- /#app -->
-
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh@0.4.1633559619/face_mesh.js" crossorigin="anonymous"></script>
   <script src="spatial-audio.js"></script>
   <script src="landmark-to-yaw.js"></script>
@@ -449,119 +163,22 @@
   <script src="webrtc.js"></script>
   <script>
     const localVideo    = document.getElementById('local-video');
-    const remotePeers   = document.getElementById('remote-peers');
+    const remoteVideo   = document.getElementById('remote-video');
     const connectBtn    = document.getElementById('connect-btn');
     const disconnectBtn = document.getElementById('disconnect-btn');
     const statusEl      = document.getElementById('status');
     const iceStatusEl   = document.getElementById('ice-status');
     const distanceEl    = document.getElementById('distance');
     const distanceVal   = document.getElementById('distance-val');
+    const reverbEl      = document.getElementById('reverb');
+    const reverbVal     = document.getElementById('reverb-val');
 
-    const wsProto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const signalingUrl = location.port
-      ? `${wsProto}://${location.hostname}:${location.port}`
-      : `${wsProto}://${location.hostname}`;
+    const signalingUrl = `ws://${location.hostname || 'localhost'}:${location.port || 8080}`;
     const room = location.hash.slice(1) || 'default';
 
     const spatialAudio   = new SpatialAudio();
     const mouseTracker   = new HeadTracker();
     const cameraTracker  = new CameraHeadTracker();
-
-    // ── Three-Monitor Workspace state ──────────────────────────────────────
-    const peerAudio = new Map();    // peerId → SpatialAudio
-    const slotAngles = { left: -45, center: 0, right: 45 };
-    const slotAssign = { left: '', center: '', right: '' };
-
-    const wsEl            = document.getElementById('workspace');
-    const wsLeftAngleEl   = document.getElementById('ws-left-angle');
-    const wsRightAngleEl  = document.getElementById('ws-right-angle');
-    const wsLeftDisplay   = document.getElementById('ws-left-display');
-    const wsRightDisplay  = document.getElementById('ws-right-display');
-    const wsLeftPeer      = document.getElementById('ws-left-peer');
-    const wsCenterPeer    = document.getElementById('ws-center-peer');
-    const wsRightPeer     = document.getElementById('ws-right-peer');
-    const wsCalibrateBtn  = document.getElementById('ws-calibrate-btn');
-    const wsCalibrateStatus = document.getElementById('ws-calibrate-status');
-    const wsCalResetBtn   = document.getElementById('ws-calibrate-reset-btn');
-
-    const wsSelects = { left: wsLeftPeer, center: wsCenterPeer, right: wsRightPeer };
-
-    function applySlotAudio(slot) {
-      const peerId = slotAssign[slot];
-      if (!peerId) return;
-      const audio = peerAudio.get(peerId);
-      if (!audio) return;
-      audio.setSourcePosition(slotAngles[slot], currentDistance);
-    }
-
-    wsLeftAngleEl.addEventListener('input', () => {
-      slotAngles.left = parseInt(wsLeftAngleEl.value);
-      wsLeftDisplay.textContent = `${slotAngles.left}°`;
-      applySlotAudio('left');
-    });
-
-    wsRightAngleEl.addEventListener('input', () => {
-      slotAngles.right = parseInt(wsRightAngleEl.value);
-      wsRightDisplay.textContent = `+${slotAngles.right}°`;
-      applySlotAudio('right');
-    });
-
-    function onSlotChange(slot) {
-      slotAssign[slot] = wsSelects[slot].value;
-      applySlotAudio(slot);
-    }
-
-    wsLeftPeer.addEventListener('change',   () => onSlotChange('left'));
-    wsCenterPeer.addEventListener('change', () => onSlotChange('center'));
-    wsRightPeer.addEventListener('change',  () => onSlotChange('right'));
-
-    wsCalibrateBtn.addEventListener('click', () => {
-      if (cameraTracker.calibrate()) {
-        wsCalibrateStatus.textContent = 'calibrated ✓';
-        wsCalibrateStatus.style.color = '#4af';
-      } else {
-        wsCalibrateStatus.textContent = 'no face detected — try again';
-        wsCalibrateStatus.style.color = '#f84';
-      }
-    });
-
-    wsCalResetBtn.addEventListener('click', () => {
-      cameraTracker.resetCalibration();
-      wsCalibrateStatus.textContent = 'not calibrated';
-      wsCalibrateStatus.style.color = '';
-    });
-
-    function addPeerToDropdowns(peerId, name) {
-      for (const sel of Object.values(wsSelects)) {
-        const opt = document.createElement('option');
-        opt.value = peerId;
-        opt.textContent = name || peerId.slice(0, 8);
-        sel.appendChild(opt);
-      }
-    }
-
-    function removePeerFromDropdowns(peerId) {
-      for (const [slot, sel] of Object.entries(wsSelects)) {
-        const opt = sel.querySelector(`option[value="${peerId}"]`);
-        if (opt) opt.remove();
-        if (slotAssign[slot] === peerId) {
-          slotAssign[slot] = '';
-        }
-      }
-    }
-
-    function resetWorkspace() {
-      wsEl.style.display = 'none';
-      for (const sel of Object.values(wsSelects)) {
-        while (sel.options.length > 1) sel.remove(1);
-      }
-      for (const [slot] of Object.entries(slotAssign)) slotAssign[slot] = '';
-      for (const audio of peerAudio.values()) audio.detach();
-      peerAudio.clear();
-      wsCalibrateStatus.textContent = 'not calibrated';
-      wsCalibrateStatus.style.color = '';
-      cameraTracker.resetCalibration();
-    }
     const vizMouse       = new SpatialViz(document.getElementById('viz-mouse'));
     const vizCamera      = new SpatialViz(document.getElementById('viz-camera'));
     const vizRemote      = new SpatialViz(document.getElementById('viz-remote'));
@@ -598,16 +215,20 @@
     cameraTracker.onHeadAngle = (az) => {
       cameraAzimuth = az;
       vizCamera.update(az, currentDistance);
-      faceStatusEl.textContent = cameraTracker.isCalibrated
-        ? `${Math.round(az)}° (cal)` : `${Math.round(az)}°`;
+      faceStatusEl.textContent = `${Math.round(az)}°`;
       roomViz.setLocalAzimuth(az);
       // Send our angle to peer over data channel — before spatial audio so a
       // thrown audio error can never silently drop the data channel message.
       if (client) client.sendData({ azimuth: az });
       spatialAudio.setListenerOrientation(az);
-      // Update listener orientation for all per-peer workspace audio instances
-      for (const audio of peerAudio.values()) audio.setListenerOrientation(az);
     };
+
+    // Reverb slider
+    reverbEl.addEventListener('input', () => {
+      const mix = parseFloat(reverbEl.value);
+      reverbVal.textContent = `${Math.round(mix * 100)}%`;
+      spatialAudio.setReverbMix(mix);
+    });
 
     // Distance slider affects all
     distanceEl.addEventListener('input', () => {
@@ -625,79 +246,28 @@
     vizRemote.update(0, 1);
 
     let client = null;
-    let currentName = '';
-    let currentRoom = location.hash.slice(1) || 'default';
 
-    function setStatus(text, isError = false) {
-      statusEl.textContent = text;
-      statusEl.className = isError ? 'error' : '';
-    }
-
-    async function startConnection() {
-      fileAttached = false;
+    connectBtn.addEventListener('click', async () => {
       connectBtn.disabled = true;
-      setStatus('allow camera access…');
+      statusEl.textContent = 'connecting…';
 
       client = new WebRTCClient({
         signalingUrl,
-        room: currentRoom,
-        name: currentName,
+        room,
         localVideoEl: localVideo,
+        remoteVideoEl: remoteVideo,
         spatialAudio,
       });
 
-      // Create a video tile for each peer that joins and return its video element
-      client.onPeerJoined = (peerId, name) => {
-        const tile = document.createElement('div');
-        tile.className = 'tile peer-tile';
-        tile.dataset.peerId = peerId;
-        const vid = document.createElement('video');
-        vid.autoplay = true; vid.playsInline = true; vid.muted = true;
-        const label = document.createElement('span');
-        label.textContent = name || 'Remote';
-        tile.appendChild(vid);
-        tile.appendChild(label);
-        remotePeers.appendChild(tile);
-        addPeerToDropdowns(peerId, name);
-        return vid;
-      };
-
-      client.onPeerLeft = (peerId, name) => {
-        const tile = remotePeers.querySelector(`[data-peer-id="${peerId}"]`);
-        if (tile) tile.remove();
-        remoteFaceStatusEl.textContent = 'no face';
-        removePeerFromDropdowns(peerId);
-        const audio = peerAudio.get(peerId);
-        if (audio) { audio.detach(); peerAudio.delete(peerId); }
-      };
-
-      // Per-peer spatial audio for workspace: each peer's audio is routed to
-      // their assigned slot's angle via the peerAudio map.
-      client.onAudioTrack = (peerId, track) => {
-        const audio = new SpatialAudio();
-        audio.attachTrack(track);
-        audio.setListenerOrientation(cameraAzimuth);
-        peerAudio.set(peerId, audio);
-        // Apply slot angle if peer is already assigned
-        for (const slot of ['left', 'center', 'right']) {
-          if (slotAssign[slot] === peerId) {
-            audio.setSourcePosition(slotAngles[slot], currentDistance);
-            return;
-          }
-        }
-        // Default: center position until assigned to a slot
-        audio.setSourcePosition(0, currentDistance);
-      };
-
-      client.onIceStateChange = (peerId, state) => {
+      client.onIceStateChange = (state) => {
         const labels = { checking: 'ICE: checking…', connected: 'ICE: connected ✓',
                          completed: 'ICE: completed ✓', failed: 'ICE: failed ✗',
                          disconnected: 'ICE: disconnected', closed: '' };
         iceStatusEl.textContent = labels[state] || `ICE: ${state}`;
       };
 
-      // Remote head angle via data channel — last received wins for viz
-      client.onDataMessage = (peerId, { azimuth }) => {
+      // Remote head angle arrives via data channel → drives vizRemote
+      client.onDataMessage = ({ azimuth }) => {
         remoteAzimuth = azimuth;
         vizRemote.update(azimuth, currentDistance);
         remoteFaceStatusEl.textContent = `${Math.round(azimuth)}°`;
@@ -705,10 +275,9 @@
       };
 
       client.onStatusChange = (s) => {
-        setStatus(s);
-        if (s === 'connected' || s === 'waiting') {
+        statusEl.textContent = s;
+        if (s === 'connected') {
           disconnectBtn.disabled = false;
-          wsEl.style.display = '';
         } else if (s === 'disconnected') {
           connectBtn.disabled = false;
           disconnectBtn.disabled = true;
@@ -716,268 +285,32 @@
           faceStatusEl.textContent = 'no face';
           remoteFaceStatusEl.textContent = 'no face';
           iceStatusEl.textContent = '';
-          remotePeers.innerHTML = '';
-          resetWorkspace();
-          showLobby();
         }
       };
 
       client.onError = (err) => {
-        setStatus(`error: ${err.message}`, true);
+        statusEl.textContent = `error: ${err.message}`;
         connectBtn.disabled = false;
         disconnectBtn.disabled = true;
       };
 
       try {
         await client.start();
-        setStatus('connecting…');
         // Start camera tracking — awaited so model loads before loop begins
         faceStatusEl.textContent = 'loading…';
         await cameraTracker.start(localVideo);
         faceStatusEl.textContent = 'no face';
       } catch (err) {
-        setStatus(`error: ${err.message}`, true);
+        statusEl.textContent = `error: ${err.message}`;
         connectBtn.disabled = false;
       }
-    }
-
-    connectBtn.addEventListener('click', startConnection);
+    });
 
     disconnectBtn.addEventListener('click', () => {
       if (client) { client.disconnect(); client = null; }
       cameraTracker.stop();
       spatialAudio.detach();
-      fileAttached = false;
-      remotePeers.innerHTML = '';
-      resetWorkspace();
-      showLobby();
     });
-
-    // ── File Player ────────────────────────────────────────────────────────
-    const fileInput     = document.getElementById('file-input');
-    const fileVideo     = document.getElementById('file-video');
-    const fileChooseBtn = document.getElementById('file-choose-btn');
-    const filePlayBtn   = document.getElementById('file-play-btn');
-    const filePauseBtn  = document.getElementById('file-pause-btn');
-    const fileStopBtn   = document.getElementById('file-stop-btn');
-    const fileLoopBtn   = document.getElementById('file-loop-btn');
-    const fileTrackBtn  = document.getElementById('file-track-btn');
-    const fileStatusEl  = document.getElementById('file-status');
-
-    const fileTracker = new CameraHeadTracker();
-    let fileAttached  = false;
-    let fileTracking  = false;
-
-    fileChooseBtn.addEventListener('click', () => fileInput.click());
-
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-
-      // Detach existing audio graph so a fresh MediaElementSource can be created
-      if (fileAttached) {
-        spatialAudio.detach();
-        fileAttached = false;
-      }
-      fileTracker.stop();
-      fileTracking = false;
-      fileTrackBtn.textContent = 'Head track: off';
-      fileTrackBtn.classList.remove('toggled');
-      faceStatusEl.textContent = 'no face';
-
-      if (fileVideo._objectUrl) URL.revokeObjectURL(fileVideo._objectUrl);
-      fileVideo._objectUrl = URL.createObjectURL(file);
-      fileVideo.src = fileVideo._objectUrl;
-      fileVideo.classList.add('loaded');
-      fileStatusEl.textContent = file.name;
-
-      filePlayBtn.disabled  = false;
-      filePauseBtn.disabled = true;
-      fileStopBtn.disabled  = true;
-      fileLoopBtn.disabled  = false;
-      fileTrackBtn.disabled = false;
-    });
-
-    fileLoopBtn.addEventListener('click', () => {
-      fileVideo.loop = !fileVideo.loop;
-      fileLoopBtn.textContent = fileVideo.loop ? 'Loop: on' : 'Loop: off';
-      fileLoopBtn.classList.toggle('toggled', fileVideo.loop);
-    });
-
-    filePlayBtn.addEventListener('click', async () => {
-      if (!fileAttached) {
-        spatialAudio.attachElement(fileVideo);
-        fileAttached = true;
-      }
-      await fileVideo.play();
-      fileStatusEl.textContent = 'playing';
-      filePlayBtn.disabled  = true;
-      filePauseBtn.disabled = false;
-      fileStopBtn.disabled  = false;
-    });
-
-    filePauseBtn.addEventListener('click', () => {
-      fileVideo.pause();
-      fileStatusEl.textContent = 'paused';
-      filePlayBtn.disabled  = false;
-      filePauseBtn.disabled = true;
-    });
-
-    fileStopBtn.addEventListener('click', () => {
-      fileVideo.pause();
-      fileVideo.currentTime = 0;
-      fileStatusEl.textContent = 'stopped';
-      filePlayBtn.disabled  = false;
-      filePauseBtn.disabled = true;
-    });
-
-    fileVideo.addEventListener('ended', () => {
-      fileStatusEl.textContent = 'ended';
-      filePlayBtn.disabled  = false;
-      filePauseBtn.disabled = true;
-    });
-
-    // Head tracking toggle — reuses CameraHeadTracker on the file video element
-    fileTrackBtn.addEventListener('click', async () => {
-      if (!fileTracking) {
-        faceStatusEl.textContent = 'loading…';
-        await fileTracker.start(fileVideo);
-        fileTracking = true;
-        fileTrackBtn.textContent = 'Head track: on';
-        fileTrackBtn.classList.add('toggled');
-      } else {
-        fileTracker.stop();
-        fileTracking = false;
-        fileTrackBtn.textContent = 'Head track: off';
-        fileTrackBtn.classList.remove('toggled');
-        faceStatusEl.textContent = 'no face';
-      }
-    });
-
-    // File head angle → listener orientation (same path as webcam tracker)
-    fileTracker.onHeadAngle = (az) => {
-      cameraAzimuth = az;
-      vizCamera.update(az, currentDistance);
-      faceStatusEl.textContent = `${Math.round(az)}° (file)`;
-      roomViz.setLocalAzimuth(az);
-      spatialAudio.setListenerOrientation(az);
-    };
-
-
-    // ── Lobby ──────────────────────────────────────────────────────────────
-    const lobbyEl       = document.getElementById('lobby');
-    const appEl         = document.getElementById('app');
-    const lobbyNameEl   = document.getElementById('lobby-name');
-    const lobbyRoomEl   = document.getElementById('lobby-room');
-    const lobbyStatusEl = document.getElementById('lobby-room-status');
-    const lobbyJoinBtn  = document.getElementById('lobby-join-btn');
-    const lobbyClearBtn = document.getElementById('lobby-clear-btn');
-    const lobbyMsgEl    = document.getElementById('lobby-msg');
-    const localNameEl   = document.getElementById('local-name');
-
-    let peekTimer = null;
-
-    function getLobbyRoom() { return lobbyRoomEl.value.trim() || 'default'; }
-
-    async function listRooms() {
-      return new Promise((resolve) => {
-        const ws = new WebSocket(signalingUrl);
-        const done = (r) => { try { ws.close(); } catch {} resolve(r); };
-        ws.onopen    = () => ws.send(JSON.stringify({ type: 'list-rooms' }));
-        ws.onmessage = (e) => { const m = JSON.parse(e.data); if (m.type === 'rooms-list') done(m.rooms); };
-        ws.onerror   = () => done([]);
-        setTimeout(() => done([]), 3000);
-      });
-    }
-
-    function renderRoomStatus(rooms) {
-      const current = getLobbyRoom();
-      const entry   = rooms.find(r => r.name === current);
-      const count   = entry ? entry.count : 0;
-      const names   = entry ? entry.names : [];
-
-      if (count === 0) {
-        lobbyStatusEl.className = 'open';
-        lobbyStatusEl.textContent = "Room is empty — you'll be first";
-      } else {
-        lobbyStatusEl.className = 'waiting';
-        lobbyStatusEl.textContent = `${count} peer${count > 1 ? 's' : ''} inside — ${names.join(', ')}`;
-      }
-      lobbyJoinBtn.disabled = false;
-    }
-
-    function renderRoomsList(rooms) {
-      const listEl = document.getElementById('lobby-rooms-list');
-      if (rooms.length === 0) {
-        listEl.innerHTML = '<div id="lobby-no-rooms">no active rooms</div>';
-        return;
-      }
-      listEl.innerHTML = rooms.map(r => {
-        const countLabel = `${r.count} peer${r.count !== 1 ? 's' : ''}${r.names.length ? ' — ' + r.names.join(', ') : ''}`;
-        return `<div class="room-row">
-          <span class="rr-name">${r.name}</span>
-          <span class="rr-count">${countLabel}</span>
-          <button onclick="lobbyQuickJoin('${r.name}')">Join</button>
-        </div>`;
-      }).join('');
-    }
-
-    window.lobbyQuickJoin = (roomName) => {
-      lobbyRoomEl.value = roomName;
-      lobbyJoinBtn.focus();
-      updateLobbyStatus();
-    };
-
-    async function updateLobbyStatus() {
-      const rooms = await listRooms();
-      renderRoomStatus(rooms);
-      renderRoomsList(rooms);
-    }
-
-    function showLobby() {
-      appEl.style.display   = 'none';
-      lobbyEl.style.display = 'flex';
-      lobbyMsgEl.textContent = '';
-      localNameEl.textContent = 'You';
-      updateLobbyStatus();
-      peekTimer = setInterval(updateLobbyStatus, 3000);
-    }
-
-    function showApp() {
-      clearInterval(peekTimer);
-      lobbyEl.style.display = 'none';
-      appEl.style.display   = 'flex';
-    }
-
-    lobbyRoomEl.addEventListener('input', () => {
-      lobbyStatusEl.className = '';
-      lobbyStatusEl.textContent = 'checking…';
-      updateLobbyStatus();
-    });
-
-    lobbyJoinBtn.addEventListener('click', async () => {
-      const name = lobbyNameEl.value.trim();
-      if (!name) { lobbyMsgEl.textContent = 'Please enter your name.'; return; }
-      currentName = name;
-      currentRoom = getLobbyRoom();
-      localNameEl.textContent = name;
-      document.getElementById('app-room-name').textContent = currentRoom;
-      showApp();
-      await startConnection();
-    });
-
-    lobbyClearBtn.addEventListener('click', () => {
-      const r = getLobbyRoom();
-      const ws = new WebSocket(signalingUrl);
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'clear-room', room: r }));
-        setTimeout(() => { try { ws.close(); } catch {} updateLobbyStatus(); }, 300);
-      };
-      lobbyMsgEl.textContent = `Room "${r}" cleared.`;
-    });
-
-    // Show lobby on load
-    showLobby();
   </script>
 </body>
 </html>
