@@ -281,6 +281,32 @@ test('isAttached reflects attachment state', async () => {
   expect(sa.isAttached).toBe(true);
 });
 
+// Test 13b
+test('attachElement wires the same graph as attachTrack', async () => {
+  global.MediaElementSource = class extends MockAudioNode {};
+
+  // Patch MockAudioContext to support createMediaElementSource
+  const origProto = MockAudioContext.prototype;
+  origProto.createMediaElementSource = function(el) {
+    const node = new MockAudioNode();
+    node._element = el;
+    this._sources.push(node);
+    return node;
+  };
+
+  const sa = new SpatialAudio();
+  const fakeEl = { nodeName: 'VIDEO' };
+  await sa.attachElement(fakeEl);
+
+  const ctx = audioContextInstances[0];
+  expect(ctx._panners.length).toBe(1);
+  expect(ctx._gainNodes.length).toBe(2);
+  expect(ctx._convolvers.length).toBe(1);
+  expect(sa.isAttached).toBe(true);
+
+  delete origProto.createMediaElementSource;
+});
+
 // Test 14
 test('setSourcePosition and setListenerOrientation before attachTrack do not throw', () => {
   const sa = new SpatialAudio();

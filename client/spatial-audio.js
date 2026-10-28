@@ -27,18 +27,45 @@ class SpatialAudio {
    * noise) so no external IR file is needed.
    */
   async attachTrack(track) {
-    // Replace any existing graph
-    if (this._ctx) {
-      this._teardown();
-    }
+    if (this._ctx) this._teardown();
 
     const ctx = new AudioContext();
     this._ctx = ctx;
 
-    // ── Source ──────────────────────────────────────────────────────────────
     const stream = new MediaStream([track]);
     this._source = ctx.createMediaStreamSource(stream);
 
+    await this._buildGraph(ctx, this._source);
+  }
+
+  /**
+   * Attach a <video> or <audio> element as the audio source.
+   * Use this when the remote stream is already bound to a media element
+   * (e.g. via srcObject) and you want to spatialise it.
+   *
+   * NOTE: A MediaElementSource can only be created once per element.
+   *
+   * @param {HTMLMediaElement} videoEl
+   */
+  async attachElement(videoEl) {
+    if (this._ctx) this._teardown();
+
+    const ctx = new AudioContext();
+    this._ctx = ctx;
+
+    this._source = ctx.createMediaElementSource(videoEl);
+
+    await this._buildGraph(ctx, this._source);
+  }
+
+  /**
+   * Internal: wire source through panner + dry/wet reverb to destination.
+   * Shared by attachTrack() and attachElement().
+   *
+   * @param {AudioContext} ctx
+   * @param {AudioNode}    source
+   */
+  async _buildGraph(ctx, source) {
     // ── HRTF panner ─────────────────────────────────────────────────────────
     const panner = ctx.createPanner();
     panner.panningModel  = 'HRTF';
@@ -63,7 +90,7 @@ class SpatialAudio {
     this._wetGain = wetGain;
 
     // ── Wire graph ───────────────────────────────────────────────────────────
-    this._source.connect(panner);
+    source.connect(panner);
 
     panner.connect(dryGain);
     dryGain.connect(ctx.destination);
